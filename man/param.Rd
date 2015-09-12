@@ -7,17 +7,16 @@
 param(fisherIf, dDim)
 }
 \arguments{
-\item{fisherIf}{\code{function(x, ...)}, where \code{x} is a numeric vector, usually a point from the design space.
+\item{fisherIf}{\code{function(x, ...)}, where \code{x} is a vector, usually a point from the design space.
 It shall evaluate to the Fisher information matrix.}
 
 \item{dDim}{length of \code{x}, usually the dimensionality of the design space.}
 }
 \value{
 \code{param} returns an object of \code{class} \code{"param"}.
-An object of class \code{"param"} is a list containing the following components:
+An object of class \code{"param"} is a list containing at least the following components:
 \itemize{
 \item fisherIf: argument
-\item dDim: argument
 \item x: a row matrix of points where \code{fisherIf} has already been evaluated.
 \item fisherI: a list of Fisher information matrices, for each row in \code{x} respectively.
 }
@@ -41,7 +40,7 @@ assign('nint_integrateNCube', ncube, envir=environment(nint_integrate))
 
 
 ## general settings
-numDeriv = FALSE
+numDeriv = TRUE
 
 ## copula
 copula = claytonCopula()
@@ -69,6 +68,7 @@ if (numDeriv) {
 
     ## 2nd derivatives
     d2logf = numDeriv2Logf(f)
+
 } else {
     ## margins
     eta1 = quote(beta1   + beta2*x    + beta3*x**2)
@@ -141,38 +141,51 @@ m = model(theta)
 ## update.param
 system.time(m <- update(m, matrix(seq(0, 1, length.out=101), ncol=1)))
 
-system.time(d <- FedorovWynn(m))
-d$adds
-getM(d)
+## find D-optimal design
+D = Dsensitivity(defaults=list(x=m$x, desx=m$x, mod=m))
+
+system.time(d <- FedorovWynn(D, maxIter=1e3))
+d$tag$FedorovWynn$tolBreak
+
+getM(m, d)
+dev.new(); plot(d, main='d')
 
 rd = reduce(d, 0.05)
 
-plot(d, wDes=rd)
+try(getM(m, rd))
+m2 = update(m, rd)
+getM(m2, rd)
 
-## update.desigh
-try(getM(rd))
-rd$sens
-rd = update(rd)
-getM(rd)
-rd$sens
+dev.new(); plot(rd, main='rd')
+dev.new(); plot(rd, sensx=d$x, sens=D(x=d$x, desx=rd$x, desw=rd$w, mod=m2), main='rd + sensitivity')
 
-## create custom design from previously obtained
+## find Ds-optimal design
+dsNames = c(names(alphas), 'beta1', 'beta2', 'beta3')
+Ds = Dsensitivity(dsNames, defaults=list(x=m$x, desx=m$x, mod=m))
+
+system.time(ds <- FedorovWynn(Ds, maxIter=1e3))
+ds$tag$FedorovWynn$tolBreak
+
+dev.new(); plot(ds, main='ds')
+
+## create custom design
 n = 4
-d2 = d
-d2$x = matrix(seq(0, 1, length.out=n), ncol=1)
-d2$w = rep(1/n, n)
-d2$sens = rep(NA, n)
+d2 = design(x=matrix(seq(0, 1, length.out=n), ncol=1), w=rep(1/n, n))
 
-d2 = update(d2)
-d2$sens
+m = update(m, d2)
+dev.new(); plot(d2, sensx=d$x, sens=D(x=d$x, desx=d2$x, desw=d2$w, mod=m), main='d2 + sensitivity')
 
-plot(d, wDes=d2, ylim=c(0, max(d2$sens)))
+## compare designs
+Defficiency(ds, d, m)
+Defficiency(d, ds, m, dsNames=dsNames) # Ds-efficiency
+Defficiency(d2, d, m)
+Defficiency(d2, ds, m) # D-efficiency
 
-d = update_reference(d, list(d2))
-Defficiency(d2, d)
+## end with nice plot
+dev.new(); plot(rd, sensx=d$x, sens=D(x=d$x, desx=rd$x, desw=rd$w, mod=m2), main='rd + sensitivity')
 }
 }
 \seealso{
-\code{\link{fisherI}}, \code{\link{update.param}}, \code{\link{FedorovWynn}}, \code{\link{getM}}
+\code{\link{fisherI}}, \code{\link{update.param}}, \code{\link{Dsensitivity}}, \code{\link{getM}}, \code{\link{Defficiency}}
 }
 

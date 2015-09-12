@@ -4,40 +4,30 @@
 \alias{plot.desigh}
 \title{Plot Design}
 \usage{
-\method{plot}{desigh}(x, ..., margins = NULL, wDes = NULL, plus = T,
-  circles = F, border = c(0.1, 0.1, 0, 0.1), sensArgs = list(),
-  wArgs = list())
+\method{plot}{desigh}(x, sensx = NULL, sens = NULL, ..., margins = NULL,
+  desSens = T, sensPch = "+", sensArgs = list())
 }
 \arguments{
 \item{x}{some design.}
+
+\item{sensx}{(optional) a row matrix of points.}
+
+\item{sens}{(optional) either a vector of sensitivities or a sensitivity function. The latter shall rely on defaults, see \code{Dsensitivity} for details.}
 
 \item{...}{other arguments passed to plot.}
 
 \item{margins}{a vector of indices, the dimensions to project on.
 Defaults to \code{1}.}
 
-\item{wDes}{a design to take weights from.
-Defaults to \code{x}.
-See \code{reduce}.}
+\item{desSens}{if \code{TRUE} and \code{sens} is not specified then the sensitivity function which potentially was used in \code{FedorovWynn} is taken as \code{sens}.}
 
-\item{plus}{add plus symbols to the sensitivity.}
+\item{sensPch}{either a character vector of point 'characters' to add to the sensitivity curve or \code{NULL}.}
 
-\item{circles}{draw weights as circles instead of as bars.}
-
-\item{border}{(if drawing circles) \code{c(bottom, left, top, right)}, the relative margins to add.}
-
-\item{sensArgs}{a list of arguments to use for drawing the sensitivities.}
-
-\item{wArgs}{a list of arguments to use for drawing the weights.}
+\item{sensArgs}{a list of arguments passed to draw calls related to the sensitivity.}
 }
 \description{
-\code{plot.desigh} creates a one dimensional plot of sensitivities and weights.
+\code{plot.desigh} creates a one-dimensional design plot, optionally together with a specified sensitivity curve.
 If the design space has additional dimensions, the design is projected on a specified margin.
-}
-\details{
-If \code{plus=T}, \code{wDes} is specified and its sensitivities contain missing values, then the latter are linearly interpolated from the sensitivities in \code{x}.
-
-If \code{circles=T}, the diameter of each circle is proportional to the corresponding weight.
 }
 \examples{
 ## see examples for param
@@ -46,6 +36,6 @@ If \code{circles=T}, the diameter of each circle is proportional to the correspo
 uses add.alpha from \url{http://www.magesblog.com/2013/04/how-to-change-alpha-value-of-colours-in.html}
 }
 \seealso{
-\code{\link{FedorovWynn}}, \code{\link{reduce}}
+\code{\link{design}}, \code{\link{Dsensitivity}}
 }
 

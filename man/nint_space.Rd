@@ -11,6 +11,7 @@ nint_space(...)
 }
 \value{
 \code{nint_space} returns an object of \code{class} \code{"nint_space"}.
+An object of \code{class} \code{"nint_space"} is an ordered list of dimension objects.
 }
 \description{
 \code{nint_space} defines an n-dimensional space as a list of dimensions.

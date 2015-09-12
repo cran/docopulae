@@ -16,7 +16,7 @@ It shall return a column matrix of two, the probability densities and cumulative
 \item{copula}{a copula object from package \pkg{copula}.}
 
 \item{names}{(if \code{margins} is a function) a vector of names or indices, the sequence of copula parameters in \code{theta}.
-\code{0} or \code{""} indicates copula parameters to omit.}
+\code{0} or \code{""} identifies copula parameters to omit.}
 }
 \value{
 \code{buildf} returns either \itemize{

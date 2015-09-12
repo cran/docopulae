@@ -11,20 +11,19 @@ reduce(des, distMax, wMin = 1e-06)
 
 \item{distMax}{maximum euclidean distance between points to be merged.}
 
-\item{wMin}{minimum weight a design point shall have to be considered significant.}
+\item{wMin}{minimum weight a point shall have to be considered significant.}
 }
 \value{
 \code{reduce} returns an object of \code{class} \code{"desigh"}.
-See \code{FedorovWynn} for its structural definition.
-The sensitivity is set to \code{NA} for all design points.
+See \code{design} for its structural definition.
 }
 \description{
-\code{reduce} drops insignificant design points and merges design points in a certain neighbourhood.
+\code{reduce} drops insignificant points and merges points in a certain neighbourhood.
 }
 \examples{
 ## see examples for param
 }
 \seealso{
-\code{\link{FedorovWynn}}, \code{\link{update.desigh}}, \code{\link{plot.desigh}}
+\code{\link{design}}
 }
 

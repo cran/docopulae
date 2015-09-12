@@ -225,6 +225,7 @@ nint_validateSpaceDims = function(x, refl) zmin(sapply(flatten(x), nint_validate
 #' @param ... dimensions each of which may be an actual dimension object or a list structure of dimension objects.
 #'
 #' @return \code{nint_space} returns an object of \code{class} \code{"nint_space"}.
+#' An object of \code{class} \code{"nint_space"} is an ordered list of dimension objects.
 #'
 #' @seealso \code{\link{nint_scatDim}}, \code{\link{nint_gridDim}}, \code{\link{nint_intvDim}}, \code{\link{nint_funcDim}}, \code{\link{nint_integrate}}, \code{\link{nint_validateSpace}}, \code{\link{nint_expandSpace}}, \code{\link{fisherI}}
 #'
@@ -306,7 +307,7 @@ nint_validateSpace_getRefl_ = function(x) {
 #'
 #' @param x some space or a list structure of spaces.
 #'
-#' @return \code{nint_expandSpace} returns a list of objects each of \code{class} \code{"nint_space"}.
+#' @return \code{nint_expandSpace} returns a list of spaces.
 #' Each space is a true subspace.
 #'
 #' @seealso \code{\link{nint_space}}

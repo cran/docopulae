@@ -9,13 +9,14 @@
 \arguments{
 \item{object}{some model.}
 
-\item{x}{a row matrix of points.
-The number of columns shall be equal to \code{object$dDim}.}
+\item{x}{either a row matrix of points or a design, or a list structure of matrices or designs.
+The number of columns/the dimensionality of the design space shall be equal to \code{ncol(object$x)}.}
 
 \item{...}{ignored.}
 }
 \value{
 \code{update.param} returns an object of \code{class} \code{"param"}.
+See \code{param} for its structural definition.
 }
 \description{
 \code{update.param} evaluates the Fisher information at uncharted points and returns an updated model object.
@@ -24,6 +25,6 @@ The number of columns shall be equal to \code{object$dDim}.}
 ## see examples for param
 }
 \seealso{
-\code{\link{param}}, \code{\link{update.desigh}}, \code{\link{update_reference}}, \code{\link{getM}}
+\code{\link{param}}, \code{\link{design}}
 }
 

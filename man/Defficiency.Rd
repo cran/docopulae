@@ -4,16 +4,18 @@
 \alias{Defficiency}
 \title{D Efficiency}
 \usage{
-Defficiency(des, ref, sNames = NULL, names = NULL)
+Defficiency(des, ref, mod, dsNames = NULL, names = NULL)
 }
 \arguments{
 \item{des}{some design.}
 
 \item{ref}{some design, the reference.}
 
-\item{sNames}{a vector of names or indices, the subset of parameters to use.}
+\item{mod}{some model.}
 
-\item{names}{a vector of names or indices, the set of parameters to use.}
+\item{dsNames}{a vector of names or indices, the subset of parameters to use. Defaults to the set of parameters in use.}
+
+\item{names}{a vector of names or indices, the set of parameters to use. Defaults to the parameters for which the Fisher information is available.}
 }
 \value{
 \code{Defficiency} returns a single numeric.
@@ -22,19 +24,17 @@ Defficiency(des, ref, sNames = NULL, names = NULL)
 \code{Defficiency} computes the D- or Ds-efficiency measure for some design with respect to some reference design.
 }
 \details{
-Both \code{sNames} and \code{names} default to the corresponding argument which was used to find the reference design.
-
 D efficiency is defined as
 \deqn{\left(\frac{\left|M(\xi,\bar{\theta})\right|}{\left|M(\xi^{*},\bar{\theta})\right|}\right)^{1/n}}{( det(M(\xi, \theta))  /  det(M(\xi*, \theta)) )**(1/n)}
 and Ds efficiency as
 \deqn{\left(\frac{\left|M_{11}(\xi,\bar{\theta})-M_{12}(\xi,\bar{\theta})M_{22}^{-1}(\xi,\bar{\theta})M_{12}^{T}(\xi,\bar{\theta})\right|}{\left|M_{11}(\xi^{*},\bar{\theta})-M_{12}(\xi^{*},\bar{\theta})M_{22}^{-1}(\xi^{*},\bar{\theta})M_{12}^{T}(\xi^{*},\bar{\theta})\right|}\right)^{1/s}}{( det(M11(\xi, \theta) - M12(\xi, \theta) \%*\% solve(M22(\xi, \theta)) \%*\% t(M12(\xi, \theta)))  /  det(M11(\xi*, \theta) - M12(\xi*, \theta) \%*\% solve(M22(\xi*, \theta)) \%*\% t(M12(\xi*, \theta))) )**(1/s)}
 
-where \eqn{M_{11}}{M11} is the submatrix corresponding to the parameters in \code{sNames}, \eqn{M_{22}}{M22} is the submatrix corresponding to the parameters in \code{names} which are not in \code{sNames}, and \eqn{M_{12}}{M12} is defined as the resulting off diagonal submatrix.
+where \eqn{M_{11}}{M11} is the submatrix corresponding to the parameters in \code{dsNames}, \eqn{M_{22}}{M22} is the submatrix corresponding to the parameters in \code{names} which are not in \code{dsNames}, and \eqn{M_{12}}{M12} is defined as the resulting off diagonal submatrix.
 }
 \examples{
 ## see examples for param
 }
 \seealso{
-\code{\link{FedorovWynn}}, \code{\link{update_reference}}, \code{\link{update.desigh}}
+\code{\link{design}}, \code{\link{param}}
 }
 

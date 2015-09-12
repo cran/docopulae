@@ -4,24 +4,23 @@
 \alias{getM}
 \title{Get Fisher Information}
 \usage{
-getM(des, mod = NULL)
+getM(mod, des)
 }
 \arguments{
-\item{des}{some design.}
+\item{mod}{some model.}
 
-\item{mod}{some model to take Fisher informations from.
-Defaults to \code{des$model}.}
+\item{des}{some design.}
 }
 \value{
 \code{getM} returns a named matrix, the Fisher information.
 }
 \description{
-\code{getM} returns the Fisher information corresponding to some design.
+\code{getM} returns the Fisher information corresponding to some model and some design.
 }
 \examples{
 ## see examples for param
 }
 \seealso{
-\code{\link{FedorovWynn}}, \code{\link{param}}, \code{\link{update.desigh}}, \code{\link{update.param}}
+\code{\link{param}}, \code{\link{design}}
 }
 

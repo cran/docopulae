@@ -10,7 +10,7 @@ nint_expandSpace(x)
 \item{x}{some space or a list structure of spaces.}
 }
 \value{
-\code{nint_expandSpace} returns a list of objects each of \code{class} \code{"nint_space"}.
+\code{nint_expandSpace} returns a list of spaces.
 Each space is a true subspace.
 }
 \description{

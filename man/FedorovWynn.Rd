@@ -4,44 +4,29 @@
 \alias{FedorovWynn}
 \title{Fedorov Wynn}
 \usage{
-FedorovWynn(mod, sNames = NULL, names = NULL, tolAbs = Inf,
-  tolRel = 1e-04, maxIter = 10000)
+FedorovWynn(sensF, tol = 1e-04, maxIter = 10000)
 }
 \arguments{
-\item{mod}{some model.}
+\item{sensF}{\code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, a sensitivity function. It's attribute \code{"defaults"} shall contain \code{x} and \code{sensF(desw=w)} shall return sensitivities for each point in \code{x} respectively for some \code{w}.}
 
-\item{sNames}{a vector of names or indices, the subset of parameters to optimize for.}
-
-\item{names}{a vector of names or indices, the set of parameters use.}
-
-\item{tolAbs}{the absolute tolerance regarding the sensitivities.}
-
-\item{tolRel}{the relative tolerance regarding the sensitivities with respect to the theoretical limit.}
+\item{tol}{the tolerance level regarding the sensitivities.}
 
 \item{maxIter}{the maximum number of iterations.}
 }
 \value{
 \code{FedorovWynn} returns an object of \code{class} \code{"desigh"}.
-An object of class \code{"desigh"} is a list containing the following components:
-\itemize{
-\item mod: argument
-\item x: a row matrix of design points, here identical to \code{mod$x}.
-\item w: a numeric vector of weights, for each design point respectively.
-\item sens: a numeric vector of sensitivities, for each design point respectively.
-\item args: a list of arguments.
-\item adds: a list of additional (runtime) information.
-}
+See \code{design} for its structural definition.
 }
 \description{
-\code{FedorovWynn} finds a D- or Ds-optimal design using a Fedorov-Wynn-type algorithm.
+\code{FedorovWynn} finds an optimal design using some sensitivity function and a Fedorov-Wynn-type algorithm.
 }
 \details{
-Both \code{sNames} and \code{names} default to the set of parameters for which the Fisher information is available.
+See \code{Dsensitivity} and it's return value for a reference implementation of a function complying with the requirements for \code{sensF}.
 
 The algorithm starts from a uniform weight design.
 In each iteration weight is redistributed to the point which has the highest sensitivity.
 Sequence: \code{1/i}.
-The algorithm stops when all sensitivities are below a certain absolute and relative tolerance level, or the maximum number of iterations is reached.
+The algorithm stops when all sensitivities are below a specified tolerance level or the maximum number of iterations is reached.
 }
 \examples{
 ## see examples for param
@@ -54,6 +39,6 @@ Wynn, Henry P. (1970) The Sequential Generation of D-Optimum Experimental Design
 \emph{The Annals of Mathematical Statistics}, 41(5):1655-1664.
 }
 \seealso{
-\code{\link{param}}, \code{\link{getM}}, \code{\link{reduce}}, \code{\link{plot.desigh}}, \code{\link{Defficiency}}, \code{\link{update.desigh}}
+\code{\link{Dsensitivity}}, \code{\link{design}}
 }
 
