@@ -7,6 +7,7 @@
 #' TODO
 #'
 #' @import graphics grDevices stats utils
+#' @importFrom methods substituteDirect
 #'
 #' @docType package
 #' @name docopulae

@@ -25,9 +25,6 @@ It evaluates expression \code{x}.
 \examples{
 ## see examples for param
 }
-\references{
-uses substitute_q from \url{http://adv-r.had.co.nz/Computing-on-the-language.html}
-}
 \seealso{
 \code{\link{buildf}}, \code{\link{fisherI}}
 }

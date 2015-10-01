@@ -13,9 +13,12 @@ It shall return a column matrix of two, the probability densities and cumulative
 \item list of pairs of expressions, named \code{"pdf"} and \code{"cdf"}, the probability density and cumulative distribution.
 }}
 
-\item{copula}{a copula object from package \pkg{copula}.}
+\item{copula}{if \code{margins} is \itemize{
+\item a function then either a copula object from package \pkg{copula} or \code{function(u, theta, ...)}, a probability density function.
+\item a list of expressions then either a copula object from package \pkg{copula} which contains distribution expressions or an expression for the probability density.
+}}
 
-\item{names}{(if \code{margins} is a function) a vector of names or indices, the sequence of copula parameters in \code{theta}.
+\item{names}{(if \code{margins} is a function and \code{copula} is a copula object) a vector of names or indices, the sequence of copula parameters in \code{theta}.
 \code{0} or \code{""} identifies copula parameters to omit.}
 }
 \value{
@@ -28,7 +31,6 @@ It shall return a column matrix of two, the probability densities and cumulative
 \code{buildf} builds the joint probabilty density given the marginal distributions and some copula.
 }
 \details{
-If \code{buildf} should build an expression, the copula shall provide distribution expressions.
 Please note that expressions are not validated.
 }
 \examples{
@@ -88,9 +90,6 @@ contour(y1, y2, z)
 
 z2 = outer(y1, y2, function(y1, y2) apply(cbind(y1, y2), 1, f2, theta))
 contour(y1, y2, z2, col='red', add=TRUE)
-}
-\references{
-uses substitute_q from \url{http://adv-r.had.co.nz/Computing-on-the-language.html}
 }
 \seealso{
 \pkg{copula}, \code{\link{expr2f}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}

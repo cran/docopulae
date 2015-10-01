@@ -28,8 +28,6 @@ Run `devtools::update_packages(c('copula', 'SparseGrid', 'numDeriv'))` (or inste
 To install/update all suggested packages run `devtools::update_packages(c('copula', 'numDeriv', 'Deriv', 'cubature', 'SparseGrid', 'mvtnorm', 'testthat'))`.
 
 If R's help won't work after installing the packages, restart R to resolve.
-If you use package `Deriv` and related functions, and you get an error telling you that some variable starting with `.` does not exist then you use the most recent version of `Deriv` which unfortunately suffers from recent regression.
-To install an older version of Deriv run `devtools::install_github('sgsokol/Deriv', ref='v3.5.3')`.
 
 Have fun :)
 

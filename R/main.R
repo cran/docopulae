@@ -73,18 +73,10 @@ update.param = function(object, x, ...) {
 }
 
 
-## from http://adv-r.had.co.nz/Computing-on-the-language.html#substitute
-substitute_q <- function(x, env) {
-    call <- substitute(substitute(y, env), list(y = x))
-    eval(call)
-}
-
-
 #' Build Density
 #'
 #' \code{buildf} builds the joint probabilty density given the marginal distributions and some copula.
 #'
-#' If \code{buildf} should build an expression, the copula shall provide distribution expressions.
 #' Please note that expressions are not validated.
 #'
 #' @param margins either \itemize{
@@ -92,16 +84,17 @@ substitute_q <- function(x, env) {
 #' It shall return a column matrix of two, the probability densities and cumulative distributions.
 #' \item list of pairs of expressions, named \code{"pdf"} and \code{"cdf"}, the probability density and cumulative distribution.
 #' }
-#' @param copula a copula object from package \pkg{copula}.
-#' @param names (if \code{margins} is a function) a vector of names or indices, the sequence of copula parameters in \code{theta}.
+#' @param copula if \code{margins} is \itemize{
+#' \item a function then either a copula object from package \pkg{copula} or \code{function(u, theta, ...)}, a probability density function.
+#' \item a list of expressions then either a copula object from package \pkg{copula} which contains distribution expressions or an expression for the probability density.
+#' }
+#' @param names (if \code{margins} is a function and \code{copula} is a copula object) a vector of names or indices, the sequence of copula parameters in \code{theta}.
 #' \code{0} or \code{""} identifies copula parameters to omit.
 #'
 #' @return \code{buildf} returns either \itemize{
 #' \item \code{function(y, theta, ...)}, the joint probability density function, if \code{margins} is a function.
 #' \item the joint probabilty density as an expression, otherwise.
 #' }
-#'
-#' @references uses substitute_q from \url{http://adv-r.had.co.nz/Computing-on-the-language.html}
 #'
 #' @seealso \pkg{copula}, \code{\link{expr2f}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}
 #'
@@ -110,36 +103,59 @@ substitute_q <- function(x, env) {
 #' @export
 buildf = function(margins, copula, names=NULL) {
     tt = list(margins, copula, names)
-    if (is.function(margins)) {
+
+    if (is.list(margins)) {
+        if (inherits(copula, 'copula')) {
+            att = attr(copula, 'exprdist')
+            if (!is.null(att))
+                copula = att$pdf
+        }
+
+        if (!is.language(copula) && !identical(copula, 1)) # special case for indepCopula
+            stop('copula shall be a copula object containing distribution expressions or an expression for the probability density in this use case')
+
+        ui = paste('u', seq1(1, length(margins)), sep='')
+        uProd = parse(text=paste(ui, collapse='*'))[[1]]
+
+        cdfs = lapply(margins, function(margin)
+            substitute((a), list(a=margin$cdf)))
+        base::names(cdfs) = ui
+
+        pdfs = lapply(margins, function(margin)
+            substitute((a), list(a=margin$pdf)))
+        base::names(pdfs) = ui
+
+        return(substitute((a)*b,
+           list(a=substituteDirect(copula, cdfs),
+                b=substituteDirect(uProd, pdfs)))
+        )
+    }
+
+    if (!is.function(margins))
+        stop('margins shall be a function in this use case')
+
+    if (inherits(copula, 'copula')) {
+        C = copula
+
         idcs = which(names != 0 & names != '')
-        if (length(idcs) == 0) {
-            r = function(y, theta, ...) {
-                dp = margins(y, theta, ...)
-                return(copula::dCopula(dp[,2], copula) * prod(dp[,1]))
-            }
-        } else {
+        if (length(idcs) == 0)
+            copula = function(u, theta, ...) copula::dCopula(u, C, ...)
+        else {
             names = names[idcs]
-            r = function(y, theta, ...) {
-                dp = margins(y, theta, ...)
-                copula@parameters[idcs] = as.numeric(theta[names])
-                return(copula::dCopula(dp[,2], copula) * prod(dp[,1]))
+            copula = function(u, theta, ...) {
+                C@parameters[idcs] = as.numeric(theta[names])
+                return(copula::dCopula(u, C, ...))
             }
         }
-    } else { # list of expressions
-        exprdist = attr(copula, 'exprdist')
-        if (is.null(exprdist))
-            stop('copula does not provide distribution expressions')
-
-        margins = lapply(margins, function(margin) lapply(margin, function(e)  substitute((e), list(e=e)) )) # wrap expressions in ()
-        n = paste('u', seq1(1, length(margins)), sep='')
-        p = lapply(margins, function(margin) margin$cdf)
-        base::names(p) = n
-        d = lapply(margins, function(margin) margin$pdf)
-        base::names(d) = n
-
-        r = substitute((a)*b, list(a=substitute_q(exprdist$pdf, p), b=substitute_q(parse(text=paste(n, collapse='*'))[[1]], d)))
     }
-    return(r)
+
+    if (!is.function(copula))
+        stop('copula shall be a copula object or a probability density function in this use case')
+
+    return(function(y, theta, ...) {
+        dp = margins(y, theta, ...)
+        return(copula(dp[,2], theta) * prod(dp[,1]))
+    })
 }
 
 
@@ -149,7 +165,7 @@ joinLanguage = function(...) {
     x = unlist(x, recursive=F, use.names=F)
     names_ = paste('x', seq1(1, length(x)), sep='')
     names(x) = names_
-    return(substitute_q(parse(text=paste('{', paste(names_, collapse=';'), '}', sep=''))[[1]], x))
+    return(substituteDirect(parse(text=paste('{', paste(names_, collapse=';'), '}', sep=''))[[1]], x))
 }
 
 withQuotes = function(x) {
@@ -169,8 +185,6 @@ withQuotes = function(x) {
 #'
 #' @return \code{expr2f} returns \code{function(y, theta, ...)}, where \code{theta} is a list of parameters.
 #' It evaluates expression \code{x}.
-#'
-#' @references uses substitute_q from \url{http://adv-r.had.co.nz/Computing-on-the-language.html}
 #'
 #' @seealso \code{\link{buildf}}, \code{\link{fisherI}}
 #'
@@ -440,7 +454,7 @@ fisherI = function(ff, theta, names, yspace, ...) {
 design = function(x, w, tag=list()) {
     if (length(w) != nrow(x))
         stop('length of w shall be equal to the number of rows in x')
-    if (sum(w) != 1)
+    if (!isTRUE(all.equal(sum(w), 1))) # R forced me to write this
         stop('weights shall sum to 1')
 
     r = list(x=x, w=w, tag=tag)

@@ -12,7 +12,7 @@ assign('nint_integrateNCube', ncube, envir=environment(nint_integrate))
 
 
 ## general settings
-numDeriv = TRUE
+numDeriv = FALSE
 
 ## copula
 copula = claytonCopula()
