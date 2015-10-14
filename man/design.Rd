@@ -9,7 +9,8 @@ design(x, w, tag = list())
 \arguments{
 \item{x}{a row matrix of points.}
 
-\item{w}{a vector of weights. Length shall be equal to the number of rows in \code{x} and sum shall be equal to \code{1}.}
+\item{w}{a vector of weights.
+Length shall be equal to the number of rows in \code{x} and sum shall be equal to \code{1}.}
 
 \item{tag}{a list containing additional information about the design.}
 }

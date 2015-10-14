@@ -8,21 +8,27 @@ Dsensitivity(dsNames = NULL, names = NULL, defaults = list(x = NULL, desw
   = NULL, desx = NULL, mod = NULL))
 }
 \arguments{
-\item{dsNames}{a vector of names or indices, the subset of parameters to use. Defaults to the set of parameters in use.}
+\item{dsNames}{a vector of names or indices, the subset of parameters to use.
+Defaults to the set of parameters in use.}
 
-\item{names}{a vector of names or indices, the set of parameters to use. Defaults to the parameters for which the Fisher information is available.}
+\item{names}{a vector of names or indices, the set of parameters to use.
+Defaults to the parameters for which the Fisher information is available.}
 
-\item{defaults}{a named list of default values. The value \code{NULL} is equivalent to absence.}
+\item{defaults}{a named list of default values.
+The value \code{NULL} is equivalent to absence.}
 }
 \value{
 \code{Dsensitivity} returns \code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, the sensitivity function.
 It's attributes contain this function's arguments.
 }
 \description{
-\code{Dsensitivity} builds a sensitivity function for the D- or Ds-optimality criterion which relies on defaults to speed up evaluation. \code{FedorovWynn} for instance requires this behaviour/protocol.
+\code{Dsensitivity} builds a sensitivity function for the D- or Ds-optimality criterion which relies on defaults to speed up evaluation.
+\code{FedorovWynn} for instance requires this behaviour/protocol.
 }
 \details{
-For efficiency reasons the returned function won't complain about \emph{missing arguments} immediately, leading to strange errors. Please make sure that all arguments are specified at all times. This behaviour might change in future releases.
+For efficiency reasons the returned function won't complain about \emph{missing arguments} immediately, leading to strange errors.
+Please make sure that all arguments are specified at all times.
+This behaviour might change in future releases.
 }
 \examples{
 ## see examples for param

@@ -13,9 +13,11 @@ Defficiency(des, ref, mod, dsNames = NULL, names = NULL)
 
 \item{mod}{some model.}
 
-\item{dsNames}{a vector of names or indices, the subset of parameters to use. Defaults to the set of parameters in use.}
+\item{dsNames}{a vector of names or indices, the subset of parameters to use.
+Defaults to the set of parameters in use.}
 
-\item{names}{a vector of names or indices, the set of parameters to use. Defaults to the parameters for which the Fisher information is available.}
+\item{names}{a vector of names or indices, the set of parameters to use.
+Defaults to the parameters for which the Fisher information is available.}
 }
 \value{
 \code{Defficiency} returns a single numeric.

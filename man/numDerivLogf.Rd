@@ -5,27 +5,27 @@
 \alias{numDerivLogf}
 \title{Build Derivative Function for Log f}
 \usage{
-numDerivLogf(f, logZero = .Machine$double.xmin,
+numDerivLogf(f, isLogf = FALSE, logZero = .Machine$double.xmin,
   logInf = .Machine$double.xmax/2, method = "Richardson",
-  method.args = list(eps = 1e-04, d = 0.1, zero.tol =
-  sqrt(.Machine$double.eps/7e-07), r = 4, v = 2, show.details = F))
+  method.args = list())
 
-numDeriv2Logf(f, logZero = .Machine$double.xmin,
+numDeriv2Logf(f, isLogf = FALSE, logZero = .Machine$double.xmin,
   logInf = .Machine$double.xmax/2, method = "Richardson",
-  method.args = list(eps = 1e-04, d = 0.1, zero.tol =
-  sqrt(.Machine$double.eps/7e-07), r = 4, v = 2, show.details = F))
+  method.args = list())
 }
 \arguments{
 \item{f}{\code{function(y, theta, ...)}, where \code{theta} is a list of parameters.
 A joint probability density function.}
 
+\item{isLogf}{set to \code{TRUE} if \code{f} is already \code{log(f)}.}
+
 \item{logZero}{the value \code{log(f)} should return if \code{f} evaluates to \code{0}.}
 
 \item{logInf}{the value \code{log(f)} should return if \code{f} evaluates to \code{Inf}.}
 
-\item{method}{see \pkg{numDeriv}}
+\item{method}{see \pkg{numDeriv}.}
 
-\item{method.args}{see \pkg{numDeriv}}
+\item{method.args}{see \pkg{numDeriv}.}
 }
 \value{
 \code{numDerivLogf} returns \code{function(y, theta, i, ...)} which evaluates to the first derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]}.

@@ -216,10 +216,11 @@ expr2f = function(x, map=NULL, yMap=NULL, thetaMap=NULL) {
 #'
 #' @param f \code{function(y, theta, ...)}, where \code{theta} is a list of parameters.
 #' A joint probability density function.
+#' @param isLogf set to \code{TRUE} if \code{f} is already \code{log(f)}.
 #' @param logZero the value \code{log(f)} should return if \code{f} evaluates to \code{0}.
 #' @param logInf the value \code{log(f)} should return if \code{f} evaluates to \code{Inf}.
-#' @param method see \pkg{numDeriv}
-#' @param method.args see \pkg{numDeriv}
+#' @param method see \pkg{numDeriv}.
+#' @param method.args see \pkg{numDeriv}.
 #'
 #' @seealso \pkg{numDeriv}, \code{\link{buildf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}
 #'
@@ -233,9 +234,11 @@ NULL
 #' @return \code{numDerivLogf} returns \code{function(y, theta, i, ...)} which evaluates to the first derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]}.
 #'
 #' @export
-numDerivLogf = function(f, logZero=.Machine$double.xmin, logInf=.Machine$double.xmax/2, method='Richardson', method.args=list(eps=1e-4, d=0.1, zero.tol=sqrt(.Machine$double.eps/7e-7), r=4, v=2, show.details=F)) {
+numDerivLogf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.Machine$double.xmax/2, method='Richardson', method.args=list()) {
     tt = list(f, logZero, logInf, method, method.args)
     f = as.function(f)
+    if (isLogf)
+        log = function(x) x
 
     logf = function(theta_i, y, theta, i, ...) {
         theta[i] = theta_i
@@ -259,9 +262,11 @@ numDerivLogf = function(f, logZero=.Machine$double.xmin, logInf=.Machine$double.
 #' @return \code{numDeriv2Logf} returns \code{function(y, theta, i, j, ...)} which evaluates to the second derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]} and \code{theta[[j]]}.
 #'
 #' @export
-numDeriv2Logf = function(f, logZero=.Machine$double.xmin, logInf=.Machine$double.xmax/2, method='Richardson', method.args=list(eps=1e-4, d=0.1, zero.tol=sqrt(.Machine$double.eps/7e-7), r=4, v=2, show.details=F)) {
+numDeriv2Logf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.Machine$double.xmax/2, method='Richardson', method.args=list()) {
     tt = list(f, logZero, logInf, method, method.args)
     f = as.function(f)
+    if (isLogf)
+        log = function(x) x
 
     logf = function(theta_ij, y, theta, ij, ...) {
         theta[ij] = theta_ij
@@ -440,7 +445,8 @@ fisherI = function(ff, theta, names, yspace, ...) {
 #' \code{design} creates a custom design object.
 #'
 #' @param x a row matrix of points.
-#' @param w a vector of weights. Length shall be equal to the number of rows in \code{x} and sum shall be equal to \code{1}.
+#' @param w a vector of weights.
+#' Length shall be equal to the number of rows in \code{x} and sum shall be equal to \code{1}.
 #' @param tag a list containing additional information about the design.
 #'
 #' @return \code{design} returns an object of \code{class} \code{"desigh"}.
@@ -542,13 +548,19 @@ Dsensitivity_anyNAm = 'Fisher information matrices shall not contain missing val
 
 #' D Sensitivity
 #'
-#' \code{Dsensitivity} builds a sensitivity function for the D- or Ds-optimality criterion which relies on defaults to speed up evaluation. \code{FedorovWynn} for instance requires this behaviour/protocol.
+#' \code{Dsensitivity} builds a sensitivity function for the D- or Ds-optimality criterion which relies on defaults to speed up evaluation.
+#' \code{FedorovWynn} for instance requires this behaviour/protocol.
 #'
-#' For efficiency reasons the returned function won't complain about \emph{missing arguments} immediately, leading to strange errors. Please make sure that all arguments are specified at all times. This behaviour might change in future releases.
+#' For efficiency reasons the returned function won't complain about \emph{missing arguments} immediately, leading to strange errors.
+#' Please make sure that all arguments are specified at all times.
+#' This behaviour might change in future releases.
 #'
-#' @param dsNames a vector of names or indices, the subset of parameters to use. Defaults to the set of parameters in use.
-#' @param names a vector of names or indices, the set of parameters to use. Defaults to the parameters for which the Fisher information is available.
-#' @param defaults a named list of default values. The value \code{NULL} is equivalent to absence.
+#' @param dsNames a vector of names or indices, the subset of parameters to use.
+#' Defaults to the set of parameters in use.
+#' @param names a vector of names or indices, the set of parameters to use.
+#' Defaults to the parameters for which the Fisher information is available.
+#' @param defaults a named list of default values.
+#' The value \code{NULL} is equivalent to absence.
 #'
 #' @return \code{Dsensitivity} returns \code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, the sensitivity function.
 #' It's attributes contain this function's arguments.
@@ -671,12 +683,7 @@ Dsensitivity = function(dsNames=NULL, names=NULL, defaults=list(x=NULL, desw=NUL
             m = dm
 
 
-        if (is.null(A))
-            target = length(idcs)
-        else
-            target = ncol(A)
-
-        return(apply(m, 3, function(m, t1) sum(diag(t1 %*% m)), t1) - target)
+        return(apply(m, 3, function(m, t1) sum(diag(t1 %*% m)), t1))
     }
     attributes(r) = list(dsNames=dsNames, names=names, defaults=defaults)
 
@@ -695,7 +702,8 @@ Dsensitivity = function(dsNames=NULL, names=NULL, defaults=list(x=NULL, desw=NUL
 #' Sequence: \code{1/i}.
 #' The algorithm stops when all sensitivities are below a specified tolerance level or the maximum number of iterations is reached.
 #'
-#' @param sensF \code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, a sensitivity function. It's attribute \code{"defaults"} shall contain \code{x} and \code{sensF(desw=w)} shall return sensitivities for each point in \code{x} respectively for some \code{w}.
+#' @param sensF \code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, a sensitivity function.
+#' It's attribute \code{"defaults"} shall contain \code{x} and \code{sensF(desw=w)} shall return sensitivities for each point in \code{x} respectively for some \code{w}.
 #' @param tol the tolerance level regarding the sensitivities.
 #' @param maxIter the maximum number of iterations.
 #'
@@ -713,7 +721,7 @@ Dsensitivity = function(dsNames=NULL, names=NULL, defaults=list(x=NULL, desw=NUL
 #' @examples ## see examples for param
 #'
 #' @export
-FedorovWynn = function(sensF, tol=1e-4, maxIter=1e4) {
+FedorovWynn = function(sensF, tol, maxIter=1e4) {
     tag = list(FedorovWynn=list(sensF=sensF, tol=tol, maxIter=maxIter))
 
     dx = attr(sensF, 'defaults')$desx
@@ -835,7 +843,10 @@ add.alpha <- function(col, alpha=1){
 #'
 #' @param x some design.
 #' @param sensx (optional) a row matrix of points.
-#' @param sens (optional) either a vector of sensitivities or a sensitivity function. The latter shall rely on defaults, see \code{Dsensitivity} for details.
+#' @param sens (optional) either a vector of sensitivities or a sensitivity function.
+#' The latter shall rely on defaults, see \code{Dsensitivity} for details.
+#' @param sensTol (optional) a single numeric.
+#' Adds a horizontal line at this sensitivity level.
 #' @param ... other arguments passed to plot.
 #' @param margins a vector of indices, the dimensions to project on.
 #' Defaults to \code{1}.
@@ -850,7 +861,7 @@ add.alpha <- function(col, alpha=1){
 #' @examples ## see examples for param
 #'
 #' @export
-plot.desigh = function(x, sensx=NULL, sens=NULL, ..., margins=NULL, desSens=T, sensPch='+', sensArgs=list()) {
+plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL, desSens=T, sensPch='+', sensArgs=list()) {
     des = x # workaround for S3 requirement
 
     args = list(...)
@@ -927,15 +938,21 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, ..., margins=NULL, desSens=T, s
                 dylim = c(0, dylim[2])
             else if (dylim[2] < 0)
                 dylim = c(dylim[1], 0)
+            if (isTRUE(sensTol < dylim[1]))
+                dylim = c(sensTol, dylim[2])
+            else if (isTRUE(dylim[2] < sensTol))
+                dylim = c(dylim[1], sensTol)
 
             margs = modifyList(list(sensx, sens, type='l', ylim=dylim, ylab='sensitvity'), sensArgs)
             ylab = margs$ylab
             margs = modifyList(margs, list(xlim=xlim, axes=F, xlab='', ylab=''))
             do.call(plot, margs)
 
-            margs = modifyList(list(h=0, col='black', lty=2), sensArgs)
-            #margs$col = add.alpha(margs$col, 0.33)
-            do.call(abline, margs)
+            if (!is.null(sensTol)) {
+                margs = modifyList(list(h=sensTol, col='black', lty=2), sensArgs)
+                #margs$col = add.alpha(margs$col, 0.33)
+                do.call(abline, margs)
+            }
 
             margs = modifyList(list(4), sensArgs)
             if (!is.null(margs$col) && is.null(margs$col.axis))
@@ -979,8 +996,10 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, ..., margins=NULL, desSens=T, s
 #' @param des some design.
 #' @param ref some design, the reference.
 #' @param mod some model.
-#' @param dsNames a vector of names or indices, the subset of parameters to use. Defaults to the set of parameters in use.
-#' @param names a vector of names or indices, the set of parameters to use. Defaults to the parameters for which the Fisher information is available.
+#' @param dsNames a vector of names or indices, the subset of parameters to use.
+#' Defaults to the set of parameters in use.
+#' @param names a vector of names or indices, the set of parameters to use.
+#' Defaults to the parameters for which the Fisher information is available.
 #'
 #' @return \code{Defficiency} returns a single numeric.
 #'

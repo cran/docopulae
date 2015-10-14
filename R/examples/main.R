@@ -116,11 +116,11 @@ system.time(m <- update(m, matrix(seq(0, 1, length.out=101), ncol=1)))
 ## find D-optimal design
 D = Dsensitivity(defaults=list(x=m$x, desx=m$x, mod=m))
 
-system.time(d <- FedorovWynn(D, maxIter=1e3))
+system.time(d <- FedorovWynn(D, 7.0007, maxIter=1e3))
 d$tag$FedorovWynn$tolBreak
 
 getM(m, d)
-dev.new(); plot(d, main='d')
+dev.new(); plot(d, sensTol=7, main='d')
 
 rd = reduce(d, 0.05)
 
@@ -129,23 +129,25 @@ m2 = update(m, rd)
 getM(m2, rd)
 
 dev.new(); plot(rd, main='rd')
-dev.new(); plot(rd, sensx=d$x, sens=D(x=d$x, desx=rd$x, desw=rd$w, mod=m2), main='rd + sensitivity')
+dev.new(); plot(rd, sensx=d$x, sens=D(x=d$x, desx=rd$x, desw=rd$w, mod=m2),
+                main='rd + sensitivity')
 
 ## find Ds-optimal design
 dsNames = c(names(alphas), 'beta1', 'beta2', 'beta3')
 Ds = Dsensitivity(dsNames, defaults=list(x=m$x, desx=m$x, mod=m))
 
-system.time(ds <- FedorovWynn(Ds, maxIter=1e3))
+system.time(ds <- FedorovWynn(Ds, 4.0004, maxIter=1e3))
 ds$tag$FedorovWynn$tolBreak
 
-dev.new(); plot(ds, main='ds')
+dev.new(); plot(ds, sensTol=4, main='ds')
 
 ## create custom design
 n = 4
 d2 = design(x=matrix(seq(0, 1, length.out=n), ncol=1), w=rep(1/n, n))
 
 m = update(m, d2)
-dev.new(); plot(d2, sensx=d$x, sens=D(x=d$x, desx=d2$x, desw=d2$w, mod=m), main='d2 + sensitivity')
+dev.new(); plot(d2, sensx=d$x, sens=D(x=d$x, desx=d2$x, desw=d2$w, mod=m),
+                sensTol=7, main='d2 + sensitivity')
 
 ## compare designs
 Defficiency(ds, d, m)
@@ -154,5 +156,6 @@ Defficiency(d2, d, m)
 Defficiency(d2, ds, m) # D-efficiency
 
 ## end with nice plot
-dev.new(); plot(rd, sensx=d$x, sens=D(x=d$x, desx=rd$x, desw=rd$w, mod=m2), main='rd + sensitivity')
+dev.new(); plot(rd, sensx=d$x, sens=D(x=d$x, desx=rd$x, desw=rd$w, mod=m2),
+                main='rd + sensitivity')
 }

@@ -4,10 +4,11 @@
 \alias{FedorovWynn}
 \title{Fedorov Wynn}
 \usage{
-FedorovWynn(sensF, tol = 1e-04, maxIter = 10000)
+FedorovWynn(sensF, tol, maxIter = 10000)
 }
 \arguments{
-\item{sensF}{\code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, a sensitivity function. It's attribute \code{"defaults"} shall contain \code{x} and \code{sensF(desw=w)} shall return sensitivities for each point in \code{x} respectively for some \code{w}.}
+\item{sensF}{\code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, a sensitivity function.
+It's attribute \code{"defaults"} shall contain \code{x} and \code{sensF(desw=w)} shall return sensitivities for each point in \code{x} respectively for some \code{w}.}
 
 \item{tol}{the tolerance level regarding the sensitivities.}
 

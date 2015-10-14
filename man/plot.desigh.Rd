@@ -4,15 +4,19 @@
 \alias{plot.desigh}
 \title{Plot Design}
 \usage{
-\method{plot}{desigh}(x, sensx = NULL, sens = NULL, ..., margins = NULL,
-  desSens = T, sensPch = "+", sensArgs = list())
+\method{plot}{desigh}(x, sensx = NULL, sens = NULL, sensTol = NULL, ...,
+  margins = NULL, desSens = T, sensPch = "+", sensArgs = list())
 }
 \arguments{
 \item{x}{some design.}
 
 \item{sensx}{(optional) a row matrix of points.}
 
-\item{sens}{(optional) either a vector of sensitivities or a sensitivity function. The latter shall rely on defaults, see \code{Dsensitivity} for details.}
+\item{sens}{(optional) either a vector of sensitivities or a sensitivity function.
+The latter shall rely on defaults, see \code{Dsensitivity} for details.}
+
+\item{sensTol}{(optional) a single numeric.
+Adds a horizontal line at this sensitivity level.}
 
 \item{...}{other arguments passed to plot.}
 
