@@ -23,7 +23,7 @@
 #'
 #' @export
 param = function(fisherIf, dDim) {
-    r = list(fisherIf=fisherIf, x=matrix(nrow=0, ncol=dDim), fisherI=list())
+    r = list(fisherIf=fisherIf, x=matrix(0, nrow=0, ncol=dDim), fisherI=list())
     class(r) = 'param'
     return(r)
 }
@@ -33,13 +33,13 @@ param = function(fisherIf, dDim) {
 #'
 #' \code{update.param} evaluates the Fisher information at uncharted points and returns an updated model object.
 #'
-#' @param object some model.
+#' @param object a model.
 #' @param x either a row matrix of points or a design, or a list structure of matrices or designs.
 #' The number of columns/the dimensionality of the design space shall be equal to \code{ncol(object$x)}.
 #' @param ... ignored.
 #'
 #' @return \code{update.param} returns an object of \code{class} \code{"param"}.
-#' See \code{param} for its structural definition.
+#' See \code{\link{param}} for its structural definition.
 #'
 #' @seealso \code{\link{param}}, \code{\link{design}}
 #'
@@ -56,59 +56,70 @@ update.param = function(object, x, ...) {
     if (ncol(x) != ncol(mod$x))
         stop(paste('x shall have exactly', ncol(mod$x), 'columns'))
 
-    r = mod
     x = unique(rbind(mod$x, x)) # merge x
     idcs = seq1(nrow(mod$x) + 1, nrow(x))
+    r = mod
 
     if (length(idcs) != 0) {
         xx = x[idcs,, drop=F]
-        r = lapply(split(xx, seq_len(nrow(xx))), mod$fisherIf)
-        fisherI = c(mod$fisherI, r)
+        fisherI = lapply(split(xx, seq_len(nrow(xx))), mod$fisherIf)
+        fisherI = c(mod$fisherI, fisherI)
         names(fisherI) = NULL
-        mod$fisherI = fisherI
+        r$fisherI = fisherI
+        r$x = x
     }
 
-    mod$x = x
-    return(mod)
+    return(r)
 }
 
 
 #' Build Density
 #'
-#' \code{buildf} builds the joint probabilty density given the marginal distributions and some copula.
+#' \code{buildf} builds a joint probabilty density function from marginal distributions and a copula.
 #'
 #' Please note that expressions are not validated.
 #'
 #' @param margins either \itemize{
 #' \item \code{function(y, theta, ...)}, where \code{theta} is a list of parameters.
 #' It shall return a column matrix of two, the probability densities and cumulative distributions.
-#' \item list of pairs of expressions, named \code{"pdf"} and \code{"cdf"}, the probability density and cumulative distribution.
+#' \item a list of pairs of expressions, each named \code{"pdf"} and \code{"cdf"}, the probability density and cumulative distribution.
 #' }
 #' @param copula if \code{margins} is \itemize{
 #' \item a function then either a copula object from package \pkg{copula} or \code{function(u, theta, ...)}, a probability density function.
-#' \item a list of expressions then either a copula object from package \pkg{copula} which contains distribution expressions or an expression for the probability density.
+#' \item a list then either a copula object from package \pkg{copula} which contains distribution expressions or an expression for the probability density which uses \code{u1},\code{u2},...
 #' }
-#' @param names (if \code{margins} is a function and \code{copula} is a copula object) a vector of names or indices, the sequence of copula parameters in \code{theta}.
-#' \code{0} or \code{""} identifies copula parameters to omit.
-#'
-#' @return \code{buildf} returns either \itemize{
-#' \item \code{function(y, theta, ...)}, the joint probability density function, if \code{margins} is a function.
-#' \item the joint probabilty density as an expression, otherwise.
+#' @param parNames if \itemize{
+#' \item (optional) \code{margins} is a function and \code{copula} is a copula object then a vector of names or indices, the sequence of copula parameters in \code{theta}.
+#' \code{0} or \code{""} identifies copula parameters to skip.
+#' \item \code{margins} is a list and \code{copula} is a copula object then a named list of names or indices, mapping parameters in \code{theta} to copula parameter variables.
+#' See \code{copula@exprdist}.
 #' }
+#' @param simplifyAndCache (if \code{margins} is a list) simplify and cache the result using \code{\link[Deriv]{Simplify}} and \code{\link[Deriv]{Cache}} from package \pkg{Deriv} if available.
 #'
-#' @seealso \pkg{copula}, \code{\link{expr2f}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}
+#' @return \code{buildf} returns \code{function(y, theta, ...)}, the joint probability density function.
+#'
+#' @seealso \pkg{copula}, \code{\link[Deriv]{Simplify}}, \code{\link[Deriv]{Cache}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}
 #'
 #' @example R/examples/buildf.R
 #'
 #' @export
-buildf = function(margins, copula, names=NULL) {
-    tt = list(margins, copula, names)
+buildf = function(margins, copula, parNames=NULL, simplifyAndCache=T) {
+    tt = list(margins, copula, parNames)
 
-    if (is.list(margins)) {
-        if (inherits(copula, 'copula')) {
+    if (is.list(margins)) { # symbolic
+        if (inherits(copula, 'copula')) { # copula object
             att = attr(copula, 'exprdist')
-            if (!is.null(att))
-                copula = att$pdf
+            if (!is.null(att)) {
+                expr = att$pdf
+                if (length(copula@parameters) != 0) {
+                    if (is.null(parNames))
+                        stop('parNames shall be specified in this use case')
+                    gets = lapply(parNames, function(n) substitute(theta[[n]], list(n=n)))
+                    names(gets) = names(parNames)
+                    expr = substituteDirect(expr, gets)
+                }
+                copula = expr
+            } # else: next stop
         }
 
         if (!is.language(copula) && !identical(copula, 1)) # special case for indepCopula
@@ -118,32 +129,36 @@ buildf = function(margins, copula, names=NULL) {
         uProd = parse(text=paste(ui, collapse='*'))[[1]]
 
         cdfs = lapply(margins, function(margin)
-            substitute((a), list(a=margin$cdf)))
-        base::names(cdfs) = ui
+            substitute((a), list(a=margin[['cdf']])))
+        names(cdfs) = ui
 
         pdfs = lapply(margins, function(margin)
-            substitute((a), list(a=margin$pdf)))
-        base::names(pdfs) = ui
+            substitute((a), list(a=margin[['pdf']])))
+        names(pdfs) = ui
 
-        return(substitute((a)*b,
-           list(a=substituteDirect(copula, cdfs),
-                b=substituteDirect(uProd, pdfs)))
-        )
+        f = substitute((a)*b, list(a=substituteDirect(copula, cdfs),
+                                   b=substituteDirect(uProd, pdfs)))
+
+        if (simplifyAndCache)
+            if (requireNamespace('Deriv', quietly=T))
+                f = Deriv::Cache(Deriv::Simplify(Deriv::deCache(f)))
+
+        return(as.function(c(alist(y=, theta=, ...=), list(f))))
     }
 
     if (!is.function(margins))
-        stop('margins shall be a function in this use case')
+        stop('margins shall either be a list or a function')
 
     if (inherits(copula, 'copula')) {
         C = copula
 
-        idcs = which(names != 0 & names != '')
+        idcs = which(parNames != 0 & parNames != '')
         if (length(idcs) == 0)
             copula = function(u, theta, ...) copula::dCopula(u, C, ...)
         else {
-            names = names[idcs]
+            parNames = parNames[idcs]
             copula = function(u, theta, ...) {
-                C@parameters[idcs] = as.numeric(theta[names])
+                C@parameters[idcs] = as.numeric(theta[parNames])
                 return(copula::dCopula(u, C, ...))
             }
         }
@@ -159,58 +174,9 @@ buildf = function(margins, copula, names=NULL) {
 }
 
 
-joinLanguage = function(...) {
-    x = list(...)
-    x = lapply(x, function(x) if (x[[1]] == '{') as.list(x)[seq1(2, length(x))] else x)
-    x = unlist(x, recursive=F, use.names=F)
-    names_ = paste('x', seq1(1, length(x)), sep='')
-    names(x) = names_
-    return(substituteDirect(parse(text=paste('{', paste(names_, collapse=';'), '}', sep=''))[[1]], x))
-}
-
-withQuotes = function(x) {
-    if (is.character(x))
-        return(paste('\'', x, '\'', sep=''))
-    return(as.character(x))
-}
-
-#' Expression To Function
-#'
-#' \code{expr2f} turns an expression into \code{function(y, theta, ...)}.
-#'
-#' @param x an expression.
-#' @param map a named list of character strings defining left assignments (\code{a="b"} => \code{a <- b}).
-#' @param yMap like \code{map} with \code{a=b} resolving to \code{a <- y[b]}.
-#' @param thetaMap like \code{map} with \code{a=b} resolving to \code{a <- theta[[b]]}.
-#'
-#' @return \code{expr2f} returns \code{function(y, theta, ...)}, where \code{theta} is a list of parameters.
-#' It evaluates expression \code{x}.
-#'
-#' @seealso \code{\link{buildf}}, \code{\link{fisherI}}
-#'
-#' @examples ## see examples for param
-#'
-#' @export
-expr2f = function(x, map=NULL, yMap=NULL, thetaMap=NULL) {
-    if (is.null(map))
-        map = list()
-    if (!is.null(yMap)) {
-        yMap[] = paste('y[', lapply(yMap, withQuotes), ']', sep='')
-        map = modifyList(map, yMap)
-    }
-    if (!is.null(thetaMap)) {
-        thetaMap[] = paste('theta[[', lapply(thetaMap, withQuotes), ']]', sep='')
-        map = modifyList(map, thetaMap)
-    }
-
-    map = parse(text=paste('{', paste(names(map), map, sep='=', collapse=';'), '}'))[[1]]
-    return(as.function(c(alist(y=, theta=, ...=), list(joinLanguage(map, x)) )) )
-}
-
-
 #' Build Derivative Function for Log f
 #'
-#' Builds a function that evaluates to the first/second derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]}/\code{theta[[i]]} and \code{theta[[j]]}.
+#' \code{numDerivLogf}/\code{numDeriv2Logf} builds a function that evaluates to the first/second derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]}/\code{theta[[i]]} and \code{theta[[j]]}.
 #'
 #' \pkg{numDeriv} produces \code{NaN}s if the log evaluates to (negative) \code{Inf} so you may want to specify \code{logZero} and \code{logInf}.
 #'
@@ -219,10 +185,9 @@ expr2f = function(x, map=NULL, yMap=NULL, thetaMap=NULL) {
 #' @param isLogf set to \code{TRUE} if \code{f} is already \code{log(f)}.
 #' @param logZero the value \code{log(f)} should return if \code{f} evaluates to \code{0}.
 #' @param logInf the value \code{log(f)} should return if \code{f} evaluates to \code{Inf}.
-#' @param method see \pkg{numDeriv}.
-#' @param method.args see \pkg{numDeriv}.
+#' @param method,side,method.args see \code{\link[numDeriv]{grad}} and \code{\link[numDeriv]{hessian}} in package \pkg{numDeriv}.
 #'
-#' @seealso \pkg{numDeriv}, \code{\link{buildf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}
+#' @seealso \code{\link[numDeriv]{grad}} and \code{\link[numDeriv]{hessian}} in package \pkg{numDeriv}, \code{\link{buildf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}
 #'
 #' @examples ## see examples for param
 #'
@@ -231,11 +196,13 @@ NULL
 
 #' @rdname numDerivLogf
 #'
+#' @details \code{numDerivLogf} passes \code{method}, \code{side} and \code{method.args} directly to \code{numDeriv::grad}.
+#'
 #' @return \code{numDerivLogf} returns \code{function(y, theta, i, ...)} which evaluates to the first derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]}.
 #'
 #' @export
-numDerivLogf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.Machine$double.xmax/2, method='Richardson', method.args=list()) {
-    tt = list(f, logZero, logInf, method, method.args)
+numDerivLogf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.Machine$double.xmax/2, method='Richardson', side=NULL, method.args=list()) {
+    tt = list(f, logZero, logInf, method, side, method.args)
     f = as.function(f)
     if (isLogf)
         log = function(x) x
@@ -251,13 +218,16 @@ numDerivLogf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.M
         return(r)
     }
     r = function(y, theta, i, ...) {
-        return(numDeriv::grad(logf, theta[[i]], method, NULL, method.args, y, theta, i, ...))
+        return(numDeriv::grad(logf, theta[[i]], method, side, method.args, y, theta, i, ...))
     }
     return(r)
 }
 
 
 #' @rdname numDerivLogf
+#'
+#' @details \code{numDeriv2Logf} duplicates the internals of \code{numDeriv::hessian} to gain speed.
+#' The defaults for \code{method.args} are \code{list(eps=1e-4, d=0.1, zero.tol=sqrt(.Machine$double.eps/7e-7), r=4, v=2)}.
 #'
 #' @return \code{numDeriv2Logf} returns \code{function(y, theta, i, j, ...)} which evaluates to the second derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]} and \code{theta[[j]]}.
 #'
@@ -267,6 +237,8 @@ numDeriv2Logf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.
     f = as.function(f)
     if (isLogf)
         log = function(x) x
+    method.args_ = list(eps=1e-4, d=0.1, zero.tol=sqrt(.Machine$double.eps/7e-7), r=4, v=2)
+    method.args_[names(method.args)] = method.args
 
     logf = function(theta_ij, y, theta, ij, ...) {
         theta[ij] = theta_ij
@@ -280,15 +252,13 @@ numDeriv2Logf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.
     }
     if (method == 'Richardson') {
         r = function(y, theta, i, j, ...) {
-            if (i == j) {
-                ## sole second derivative at D[2]
-                return( numDeriv::genD(logf, theta[[i]], method, method.args, y, theta, i, ...)$D[2] )
-            }
-            return( numDeriv::genD(logf, c(theta[[i]], theta[[j]]), method, method.args, y, theta, c(i, j), ...)$D[4] ) # sole mixed second derivative at D[4]
+            if (i == j)
+                return( numDeriv::genD(logf, theta[[i]], method, method.args_, y, theta, i, ...)[['D']][2] ) # sole second derivative at D[2]
+            return( numDeriv::genD(logf, c(theta[[i]], theta[[j]]), method, method.args_, y, theta, c(i, j), ...)[['D']][4] ) # sole mixed second derivative at D[4]
         }
     } else if (method == 'complex') {
         r = function(y, theta, i, j, ...) {
-            r = numDeriv::hessian(logf, c(theta[[i]], theta[[j]]), method, method.args, y, theta, c(i, j), ...)
+            r = numDeriv::hessian(logf, c(theta[[i]], theta[[j]]), method, method.args_, y, theta, c(i, j), ...)
             if (i == j)
                 return(r[1])
             return(r[2])
@@ -302,21 +272,17 @@ numDeriv2Logf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.
 
 #' Build Derivative Function for Log f
 #'
-#' Builds a function that evaluates to the first/second derivative of \code{log(f)} with respect to a predefined set of variables/variable combinations.
+#' \code{DerivLogf}/\code{Deriv2Logf} builds a function that evaluates to the first/second derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]}/\code{theta[[i]]} and \code{theta[[j]]}.
 #'
-#' While \code{numDerivLogf} relies on \pkg{numDeriv} and therefore uses finite differences to evaluate the derivatives, \code{DerivLogf} utilizes \code{Deriv} to build sub functions for each variable in \code{names}.
+#' While \code{numDerivLogf} relies on the package \pkg{numDeriv} and therefore uses finite differences to evaluate the derivatives, \code{DerivLogf} utilizes the package \pkg{Deriv} to build sub functions for each parameter in \code{parNames}.
 #' The same is true for \code{Deriv2Logf}.
 #'
-#' \code{Deriv} won't recognize components or parameters accessed by \code{[}, \code{[[} or \code{$} as variables (e.g. \code{theta[["beta1"]]}).
-#' Therefore it's necessary to specify mappings from \code{y} and \code{theta} to the variables in \code{f}.
+#' @param f \code{function(y, theta, ...)}, where \code{theta} is a list of parameters.
+#' @param parNames a vector of names or indices, the subset of parameters to use.
+#' @param preSimplify simplify the body of \code{f} using functions from package \pkg{Deriv}.
+#' @param ... other arguments passed to \code{\link[Deriv]{Deriv}} from package \pkg{Deriv}.
 #'
-#' @param f an expression, a joint probability density.
-#' @param names a character vector of variable names.
-#' @param map a named list of character strings defining left assignments (\code{a="b"} => \code{a <- b}).
-#' @param yMap like \code{map} with \code{a=b} resolving to \code{a <- y[b]}.
-#' @param thetaMap like \code{map} with \code{a=b} resolving to \code{a <- theta[[b]]}.
-#'
-#' @seealso \code{\link[Deriv]{Deriv}} in package \pkg{Deriv}, \code{\link{buildf}}, \code{\link{numDerivLogf}}, \code{\link{fisherI}}
+#' @seealso \pkg{Deriv}, \code{\link[Deriv]{Deriv}} in package \pkg{Deriv}, \code{\link{buildf}}, \code{\link{numDerivLogf}}, \code{\link{fisherI}}
 #'
 #' @examples ## see examples for param
 #' ## mind the gain regarding runtime compared to numDeriv
@@ -324,17 +290,31 @@ numDeriv2Logf = function(f, isLogf=FALSE, logZero=.Machine$double.xmin, logInf=.
 #' @name DerivLogf
 NULL
 
+prepareDeriv = function(f, parNames, preSimplify) {
+    f = body(f)
+    logf = substitute(log(f), list(f=f))
+    if (preSimplify)
+        logf = Deriv::Cache(Deriv::Simplify(Deriv::deCache(logf)))
+
+    x = parNames
+    names(x) = rep('theta', length(x))
+
+    return(list(logf=logf, x=x))
+}
+
 #' @rdname DerivLogf
 #'
-#' @return \code{DerivLogf} returns \code{function(y, theta, i, ...)} where \code{theta} is a list of parameters.
-#' It evaluates to the first derivative of \code{log(f)} with respect to variable \code{i}.
-#' Additionally the attribute \code{"d"} contains the list of sub functions.
+#' @return \code{DerivLogf} returns \code{function(y, theta, i, ...)} which evaluates to the first derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]}.
+#' The attribute \code{"d"} contains the list of sub functions.
 #'
 #' @export
-DerivLogf = function(f, names, map=NULL, yMap=NULL, thetaMap=NULL) {
-    logf = substitute(log((f)), list(f=f))
-    d = Derivf(logf, names)
-    d = lapply(d, expr2f, map, yMap, thetaMap)
+DerivLogf = function(f, parNames, preSimplify=T, ...) {
+    prep = prepareDeriv(f, parNames, preSimplify)
+
+    expr = Derivf(prep$logf, prep$x, ...)
+    d = lapply(expr, function(expr)
+        as.function(c(alist(y=, theta=, ...=), list(expr))))
+    names(d) = names(expr)
 
     r = function(y, theta, i, ...) {
         return(d[[i]](y, theta, ...))
@@ -345,15 +325,21 @@ DerivLogf = function(f, names, map=NULL, yMap=NULL, thetaMap=NULL) {
 
 #' @rdname DerivLogf
 #'
-#' @return \code{Deriv2Logf} returns \code{function(y, theta, i, j, ...)} where \code{theta} is a list of parameters.
-#' It evaluates to the second derivative of \code{log(f)} with respect to the variables \code{i} and \code{j}.
-#' Additionally the attribute \code{"d2"} contains the list of sub functions.
+#' @return \code{Deriv2Logf} returns \code{function(y, theta, i, j, ...)} which evaluates to the second derivative of \code{log(f(y, theta, ...))} with respect to \code{theta[[i]]} and \code{theta[[j]]}.
+#' The attribute \code{"d2"} contains the list of sub functions.
 #'
 #' @export
-Deriv2Logf = function(f, names, map=NULL, yMap=NULL, thetaMap=NULL) {
-    logf = substitute(log((f)), list(f=f))
-    d2 = Deriv2f(logf, names)
-    d2 = lapply(d2, function(d2) lapply(d2, expr2f, map, yMap, thetaMap))
+Deriv2Logf = function(f, parNames, preSimplify=T, ...) {
+    prep = prepareDeriv(f, parNames, preSimplify)
+
+    expr = Deriv2f(prep$logf, prep$x, ...)
+    d2 = lapply(expr, function(expr) {
+        r = lapply(expr, function(expr)
+            as.function(c(alist(y=, theta=, ...=), list(expr))))
+        names(r) = names(expr)
+        return(r)
+    })
+    names(d2) = names(expr)
 
     r = function(y, theta, i, j, ...) {
         return(d2[[i]][[j]](y, theta, ...))
@@ -376,19 +362,19 @@ Deriv2Logf = function(f, names, map=NULL, yMap=NULL, thetaMap=NULL) {
 #' }
 #' where \code{f} is the joint probability density function and \code{dlogf}/\code{d2logf} is the first/second derivative of \code{log(f)} with respect to \code{theta[[i]]}/\code{theta[[i]]} and \code{theta[[j]]}.
 #' @param theta the list of parameters.
-#' @param names a vector of names or indices, the subset of parameters to use.
+#' @param parNames a vector of names or indices, the subset of parameters to use.
 #' @param yspace a space, the support of \code{y}.
 #' @param ... other arguments passed to \code{ff}.
 #'
 #' @return \code{fisherI} returns a named matrix, the Fisher information.
 #'
-#' @seealso \code{\link{buildf}}, \code{\link{expr2f}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{nint_space}}, \code{\link{nint_transform}}, \code{\link{nint_integrate}}, \code{\link{param}}
+#' @seealso \code{\link{buildf}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{nint_space}}, \code{\link{nint_transform}}, \code{\link{nint_integrate}}, \code{\link{param}}
 #'
 #' @examples ## see examples for param
 #'
 #' @export
-fisherI = function(ff, theta, names, yspace, ...) {
-    tt = list(ff, theta, names, yspace)
+fisherI = function(ff, theta, parNames, yspace, ...) {
+    tt = list(ff, theta, parNames, yspace)
 
     i = 0
     j = 0
@@ -396,7 +382,7 @@ fisherI = function(ff, theta, names, yspace, ...) {
         dlogf = ff[['dlogf']]
         d2logf = ff[['d2logf']]
         if ((is.null(dlogf) && is.null(d2logf)) || (!is.null(dlogf) && !is.null(d2logf)))
-            stop('either dlogf xor d2logf shall be given')
+            stop('either dlogf xor d2logf shall be specified')
 
         f = ff[['f']]
         if (!is.null(dlogf)) {
@@ -411,12 +397,12 @@ fisherI = function(ff, theta, names, yspace, ...) {
         gd = g
     }
 
-    n = length(names)
+    n = length(parNames)
     if (n == 0)
         return(matrix(nrow=0, ncol=0))
 
-    combs = combn(names, 2)
-    r = matrix(0, nrow=n, ncol=n, dimnames=list(names, names))
+    combs = combn(parNames, 2)
+    r = matrix(0, nrow=n, ncol=n, dimnames=list(parNames, parNames))
 
     ## do off diagonal
     for (k in seq1(1, ncol(combs))) {
@@ -424,16 +410,12 @@ fisherI = function(ff, theta, names, yspace, ...) {
         j = combs[2, k]
 
         r[i, j] = nint_integrate(g, yspace, ...)
-        #print(j / ncol(combs))
-        #print(rr)
     }
 
     ## do diagonal
-    for (i in names) {
+    for (i in parNames) {
         j = i # necessary
         r[i, i] = nint_integrate(gd, yspace, ...)
-        #print(j / ncol(combs))
-        #print(rr)
     }
 
     return(mirrorMatrix(r))
@@ -452,7 +434,7 @@ fisherI = function(ff, theta, names, yspace, ...) {
 #' @return \code{design} returns an object of \code{class} \code{"desigh"}.
 #' An object of class \code{"desigh"} is a list containing at least this function's arguments.
 #'
-#' @seealso \code{\link{FedorovWynn}}, \code{\link{reduce}}, \code{\link{getM}}, \code{\link{plot.desigh}}, \code{\link{Defficiency}}, \code{\link{update.param}}
+#' @seealso \code{\link{Wynn}}, \code{\link{reduce}}, \code{\link{getM}}, \code{\link{plot.desigh}}, \code{\link{Defficiency}}, \code{\link{update.param}}
 #'
 #' @examples ## see examples for param
 #'
@@ -469,78 +451,118 @@ design = function(x, w, tag=list()) {
 }
 
 
-getDsPar = function(mod, dsNames, names) {
-    needNames = is.character(names) || is.character(dsNames)
-    needFi = needNames || is.null(names)
+getDAPar = function(mod, A, parNames) {
+    # A = NULL || chr || int || row named mat || mat
+    # parNames = NULL || chr || int
 
-    if (needFi) {
-        if (length(mod$fisherI) == 0)
-            stop('model shall contain at least one Fisher information matrix')
-        fi = mod$fisherI[[1]]
-    }
+    # gather fI, fNames
+    fI = NULL
+    fNames = NULL
 
-    if (needNames) {
-        fNames = rownames(fi)
+    if (length(mod$fisherI) != 0) {
+        fI = mod$fisherI[[1]]
+
+        fNames = rownames(fI)
         if (is.null(fNames)) {
-            fNames = colnames(fi)
-            if (is.null(fNames)) {
-                stop('first Fisher information matrix shall have row or column names')
-            }
+            fNames = colnames(fI)
         }
     }
 
-    if (is.null(names)) {
-        idcs = seq1(1, nrow(fi))
+    # parNames
+    if (is.character(parNames)) {
+        if (!is.null(fNames)) {
+            parNames = match(parNames, fNames)
+
+            if (anyNA(parNames))
+                stop('parNames doesn\'t correspond to the names in the first Fisher information matrix')
+        }
+    }
+    # = NULL || chr || int
+
+    # A
+    if (is.null(A) || (is.matrix(A) && is.null(rownames(A)))) # D, raw D_A
+        return(list(parNames=parNames, A=A))
+
+    n = NULL
+    aIdcs = NULL
+    if (is.character(A)) {
+        n = A
+    } else if (is.vector(A)) {
+        aIdcs = A
     } else {
-        if (is.character(names))
-            idcs = match(names, fNames)
-        else
-            idcs = names
-        idcs = sort(unique(idcs))
+        n = rownames(A)
     }
 
-    if (is.null(dsNames)) {
-        sIdcs = seq1(1, length(idcs))
-    } else {
-        if (is.character(dsNames))
-            sIdcs = match(dsNames, fNames[idcs])
-        else
-            sIdcs = dsNames
-        sIdcs = sort(unique(sIdcs))
+    if (!is.null(n)) { # resolve parNames
+        if (is.character(parNames)) { # parNames = chr
+            n2 = parNames
+        } else { # parNames = NULL || int
+            if (is.null(fNames))
+                stop('in this case the first Fisher information matrix shall have names')
+
+            if (is.null(parNames)) { # parNames = NULL
+                n2 = fNames
+            } else { # parNames = int
+                n2 = fNames[parNames]
+            }
+        }
+
+        aIdcs = match(n, n2)
+        if (anyNA(aIdcs))
+            stop('parameter names in A don\'t correspond to the subset of parameters')
     }
 
-    if (anyNA(sIdcs))
-        stop('dsNames shall be a subset of names (argument)')
+    if (is.null(parNames)) { # parNames = NULL
+        if (is.null(fI))
+            stop('in this case the model shall contain at least one Fisher information matrix')
 
-    if (length(sIdcs) != length(idcs)) {
-        s = length(sIdcs)
-        n = length(idcs)
+        k = nrow(fI)
+    } else { # parNames = chr || int
+        k = length(parNames)
+    }
 
-        A = matrix(0, nrow=n, ncol=s)
-        A[(seq1(1, s) - 1)*n + sIdcs] = 1
-    } else
-        A = NULL
+    if (is.character(A) || is.vector(A)) { # D_s
+        s = length(A)
+        A = matrix(0, nrow=k, ncol=s)
+        A[(seq1(1, s) - 1)*k + aIdcs] = 1
+        return(list(parNames=parNames, A=A))
+    }
 
-    return(list(idcs=idcs, sIdcs=sIdcs, A=A))
+    # named D_A
+    nA = matrix(0, nrow=k, ncol=ncol(A))
+    nA[aIdcs,] = A
+    return(list(parNames=parNames, A=nA))
 }
 
-getm = function(mod, x, idcs=NULL) {
+getm = function(mod, x, parNames=NULL) {
     if (nrow(x) == 0)
-        return(array(dim=c(length(idcs), length(idcs), 0)))
+        return(array(dim=c(length(parNames), length(parNames), 0)))
 
     xidcs = rowmatch(x, mod$x)
     if (anyNA(xidcs))
         stop('model shall contain Fisher information matrices for each point. See update.param')
 
     fi = mod$fisherI[[xidcs[1]]]
-    if (is.null(idcs) || nrow(fi) == length(idcs))
+    if (is.null(parNames) ||
+        isTRUE(all.equal(parNames, rownames(fi))) || isTRUE(all.equal(parNames, colnames(fi))) ||
+        isTRUE(all.equal(parNames, seq1(1, nrow(fi)))))
         return(simplify2array(mod$fisherI[xidcs]))
 
-    return(vapply(xidcs, function(xidx) mod$fisherI[[xidx]][idcs, idcs], matrix(0, nrow=length(idcs), ncol=length(idcs))))
+    return(vapply(xidcs, function(xidx) mod$fisherI[[xidx]][parNames, parNames], matrix(0, nrow=length(parNames), ncol=length(parNames))))
 }
 
 getM_ = function(m, w) {
-    return(apply(sweep(m, 3, w, '*'), c(1, 2), sum))
+    # fastest solution by now
+    d = dim(m)
+    nrow = d[1]
+    ncol = d[2]
+    r = matrix(0.0, nrow=nrow, ncol=ncol)
+    jj = 1:ncol
+    for (i in 1:nrow) {
+        for (j in jj)
+            r[i, j] = sum(m[i, j,]*w)
+    }
+    return(r)
 }
 
 
@@ -548,16 +570,24 @@ Dsensitivity_anyNAm = 'Fisher information matrices shall not contain missing val
 
 #' D Sensitivity
 #'
-#' \code{Dsensitivity} builds a sensitivity function for the D- or Ds-optimality criterion which relies on defaults to speed up evaluation.
-#' \code{FedorovWynn} for instance requires this behaviour/protocol.
+#' \code{Dsensitivity} builds a sensitivity function for the D-, D_s or D_A-optimality criterion which relies on defaults to speed up evaluation.
+#' \code{Wynn} for instance requires this behaviour/protocol.
+#'
+#' Indices and rows of an unnamed matrix supplied to argument \code{A} correspond to the subset of parameters defined by argument \code{parNames}.
 #'
 #' For efficiency reasons the returned function won't complain about \emph{missing arguments} immediately, leading to strange errors.
-#' Please make sure that all arguments are specified at all times.
+#' Please ensure that all arguments are specified at all times.
 #' This behaviour might change in future releases.
 #'
-#' @param dsNames a vector of names or indices, the subset of parameters to use.
-#' Defaults to the set of parameters in use.
-#' @param names a vector of names or indices, the set of parameters to use.
+#' @param A for \itemize{
+#' \item D-optimality: \code{NULL}
+#' \item D_s-optimality: a vector of names or indices, the subset of parameters of interest.
+#' \item D_A-optimality: either \itemize{
+#'   \item directly: a matrix without row names.
+#'   \item indirectly: a matrix with row names corresponding to the parameters.
+#'   }
+#' }
+#' @param parNames a vector of names or indices, the subset of parameters to use.
 #' Defaults to the parameters for which the Fisher information is available.
 #' @param defaults a named list of default values.
 #' The value \code{NULL} is equivalent to absence.
@@ -565,137 +595,162 @@ Dsensitivity_anyNAm = 'Fisher information matrices shall not contain missing val
 #' @return \code{Dsensitivity} returns \code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, the sensitivity function.
 #' It's attributes contain this function's arguments.
 #'
-#' @seealso \code{\link{param}}, \code{\link{FedorovWynn}}, \code{\link{plot.desigh}}
+#' @references E. Perrone & W.G. Müller (2016) Optimal designs for copula models, Statistics, 50:4, 917-929, DOI: 10.1080/02331888.2015.1111892
+#'
+#' @seealso \code{\link{docopulae}}, \code{\link{param}}, \code{\link{Wynn}}, \code{\link{plot.desigh}}
 #'
 #' @examples ## see examples for param
 #'
+#' @encoding UTF-8
 #' @export
-Dsensitivity = function(dsNames=NULL, names=NULL, defaults=list(x=NULL, desw=NULL, desx=NULL, mod=NULL)) {
-    dmod = defaults$mod
-    ddesx = defaults$desx
-    ddesw = defaults$desw
-    dx = defaults$x
+Dsensitivity = function(A=NULL, parNames=NULL, defaults=list(x=NULL, desw=NULL, desx=NULL, mod=NULL)) {
+    # tr(M^-1 A (A^T M^-1 A)^-1 A^T M^-1 m)  = M, A, m
+    # 3 M = sum(desw*desm)
+    # 2   desm = (mod, desx, parNames)
+    # 1     parNames = (A, parNames)
+    # 1 A = (A, parNames)
+    # 2 m = (mod, x, parNames)
+    # 1   parNames = (A, parNames)
+    dx = defaults[['x']]
+    ddesw = defaults[['desw']]
+    ddesx = defaults[['desx']]
+    dmod = defaults[['mod']]
 
-    u1 = T; u2 = T # update
-
-    # mod, dsNames, names -> idcs, A
-    if (u1 && !is.null(dmod)) {
-        tt = getDsPar(dmod, dsNames, names)
-        didcs = tt$idcs
-        dA = tt$A
-    } else {
-        didcs = NULL
-        dA = NULL
-        u1 = F
+    # 1
+    d1 = F
+    if (!is.null(dmod)) {
+        tt = try(getDAPar(dmod, A, parNames), silent=T)
+        if (class(tt) != 'try-error') {
+            d1 = T
+            dparNames = tt$parNames
+            dA = tt$A
+        } else
+            warning(tt)
     }
 
-    # mod, idcs, desx -> desm
-    if (u1 && !is.null(ddesx)) {
-        ddesm = getm(dmod, ddesx, didcs)
-        if (anyNA(ddesm))
-            stop(Dsensitivity_anyNAm)
-    } else {
-        ddesm = NULL
-        u1 = F
+    # 2
+    d2_1 = F
+    d2_2 = F
+    if (d1) {
+        if (!is.null(ddesx)) {
+            d2_1 = T
+            ddesm = getm(dmod, ddesx, dparNames)
+            if (anyNA(ddesm))
+                stop(Dsensitivity_anyNAm)
+        }
+
+        if (!is.null(dx)) {
+            d2_2 = T
+            dm = getm(dmod, dx, dparNames)
+            if (anyNA(dm))
+                stop(Dsensitivity_anyNAm)
+            dm = matrix(dm, nrow=prod(dim(dm)[1:2])) # prepare I
+        }
     }
 
-    # desm, desw -> t1
-    if (u1 && !is.null(ddesw)) {
-        ddesM = getM_(ddesm, ddesw)
-        ddesMi = solve(ddesM)
+    # 3
+    d3 = F
+    if (d2_1 && !is.null(ddesw)) {
+        d3 = T
+        dM = getM_(ddesm, ddesw)
+        dMi = solve(dM)
         if (is.null(dA))
-            dt1 = ddesMi
+            dt1 = dMi
         else
-            dt1 = ddesMi %*% dA %*% solve(t(dA) %*% ddesMi %*% dA) %*% t(dA) %*% ddesMi
-    } else {
-        dt1 = NULL
-        u1 = F
+            dt1 = dMi %*% dA %*% solve(t(dA) %*% dMi %*% dA) %*% t(dA) %*% dMi
+        dt1 = c(t(dt1)) # prepare I
     }
 
-    # mod, idcs, x -> m
-    if (u1 && !is.null(dx)) {
-        dm = getm(dmod, dx, didcs)
-        if (anyNA(dm))
-            stop(Dsensitivity_anyNAm)
-    } else {
-        dm = NULL
-        u2 = F
-    }
+    # 4
+    if (d3 && d2_2)
+        dr = c(dt1 %*% dm) # I: tr(dt1 %*% dm[,,i])
 
     r = function(x=NULL, desw=NULL, desx=NULL, mod=NULL) {
-        u1 = F #; u2 = F # update
-
+        # 1
+        u1 = F
         if (is.null(mod))
             mod = dmod
         else
             u1 = T
 
-        # mod, dsNames, names -> idcs, A
         if (u1) {
-            tt = getDsPar(mod, dsNames, names)
-            idcs = tt$idcs
+            u1 = T
+            tt = getDAPar(mod, A, parNames)
+            parNames = tt$parNames
             A = tt$A
         } else {
-            idcs = didcs
+            parNames = dparNames
             A = dA
         }
 
+        # 2
+        u2_1 = F
         if (is.null(desx))
             desx = ddesx
         else
-            u1 = T
+            u2_1 = T
 
-        # mod, idcs, desx -> desm
-        if (u1) {
-            desm = getm(mod, desx, idcs)
+        if (u1 || u2_1) {
+            u2_1 = T
+            desm = getm(mod, desx, parNames)
             if (anyNA(desm))
                 stop(Dsensitivity_anyNAm)
         } else
             desm = ddesm
 
-        if (is.null(desw))
-            desw = ddesw
-        else
-            u1 = T
-
-        # desm, desw -> t1
-        if (u1) {
-            desM = getM_(desm, desw)
-            desMi = solve(desM)
-            if (is.null(A))
-                t1 = desMi
-            else
-                t1 = desMi %*% A %*% solve(t(A) %*% desMi %*% A) %*% t(A) %*% desMi
-        } else
-            t1 = dt1
-
+        u2_2 = F
         if (is.null(x))
             x = dx
         else
-            u1 = T # u2 would be more precise
+            u2_2 = T
 
-        # mod, idcs, x -> m
-        if (u1) {
-            m = getm(mod, x, idcs)
+        if (u1 || u2_2) {
+            u2_2 = T
+            m = getm(mod, x, parNames)
             if (anyNA(m))
                 stop(Dsensitivity_anyNAm)
+            m = matrix(m, nrow=prod(dim(m)[1:2])) # prepare I
         } else
             m = dm
 
+        # 3
+        u3 = F
+        if (is.null(desw))
+            desw = ddesw
+        else
+            u3 = T
 
-        return(apply(m, 3, function(m, t1) sum(diag(t1 %*% m)), t1))
+        if (u2_1 || u3) {
+            u3 = T
+            M = getM_(desm, desw)
+            Mi = solve(M)
+            if (is.null(A))
+                t1 = Mi
+            else
+                t1 = Mi %*% A %*% solve(t(A) %*% Mi %*% A) %*% t(A) %*% Mi
+            t1 = c(t(t1)) # prepare I
+        } else
+            t1 = dt1
+
+        # 4
+        if (u3 || u2_2)
+            r = c(t1 %*% m) # I: tr(dt1 %*% dm[,,i])
+        else
+            r = dr
+
+        return(r)
     }
-    attributes(r) = list(dsNames=dsNames, names=names, defaults=defaults)
+    attributes(r) = list(A=A, parNames=parNames, defaults=defaults)
 
     return(r)
 }
 
 
-#' Fedorov Wynn
+#' Wynn
 #'
-#' \code{FedorovWynn} finds an optimal design using some sensitivity function and a Fedorov-Wynn-type algorithm.
+#' \code{Wynn} finds an optimal design using a sensitivity function and a Wynn-algorithm.
 #'
-#' See \code{Dsensitivity} and it's return value for a reference implementation of a function complying with the requirements for \code{sensF}.
+#' See \code{\link{Dsensitivity}} and it's return value for a reference implementation of a function complying with the requirements for \code{sensF}.
 #'
 #' The algorithm starts from a uniform weight design.
 #' In each iteration weight is redistributed to the point which has the highest sensitivity.
@@ -703,17 +758,14 @@ Dsensitivity = function(dsNames=NULL, names=NULL, defaults=list(x=NULL, desw=NUL
 #' The algorithm stops when all sensitivities are below a specified tolerance level or the maximum number of iterations is reached.
 #'
 #' @param sensF \code{function(x=NULL, desw=NULL, desx=NULL, mod=NULL)}, a sensitivity function.
-#' It's attribute \code{"defaults"} shall contain \code{x} and \code{sensF(desw=w)} shall return sensitivities for each point in \code{x} respectively for some \code{w}.
+#' It's attribute \code{"defaults"} shall contain identical \code{x} and \code{desx}, and \code{sensF(desw=w)} shall return sensitivities corresponding to each point in \code{x}.
 #' @param tol the tolerance level regarding the sensitivities.
 #' @param maxIter the maximum number of iterations.
 #'
-#' @return \code{FedorovWynn} returns an object of \code{class} \code{"desigh"}.
-#' See \code{design} for its structural definition.
+#' @return \code{Wynn} returns an object of \code{class} \code{"desigh"}.
+#' See \code{\link{design}} for its structural definition.
 #'
-#' @references Fedorov, V. V. (1971) The Design of Experiments in the Multiresponse Case.
-#' \emph{Theory of Probability and its Applications}, 16(2):323-332.
-#'
-#' Wynn, Henry P. (1970) The Sequential Generation of D-Optimum Experimental Designs.
+#' @references Wynn, Henry P. (1970) The Sequential Generation of D-Optimum Experimental Designs.
 #' \emph{The Annals of Mathematical Statistics}, 41(5):1655-1664.
 #'
 #' @seealso \code{\link{Dsensitivity}}, \code{\link{design}}
@@ -721,14 +773,18 @@ Dsensitivity = function(dsNames=NULL, names=NULL, defaults=list(x=NULL, desw=NUL
 #' @examples ## see examples for param
 #'
 #' @export
-FedorovWynn = function(sensF, tol, maxIter=1e4) {
-    tag = list(FedorovWynn=list(sensF=sensF, tol=tol, maxIter=maxIter))
+Wynn = function(sensF, tol, maxIter=1e4) {
+    tag = list(Wynn=list(sensF=sensF, tol=tol, maxIter=maxIter))
 
-    dx = attr(sensF, 'defaults')$desx
-    if (nrow(dx) == 0)
-        return(design(dx, numeric(0), tag=tag))
+    defaults = attr(sensF, 'defaults')
+    x = defaults[['x']]
+    if (!isTRUE(all.equal(x, defaults[['desx']])))
+        stop('sensitivity defaults for x and desx shall be equal')
 
-    n = nrow(dx)
+    if (nrow(x) == 0)
+        return(design(x, numeric(0), tag=tag))
+
+    n = nrow(x)
     w = rep(1/n, n)
     tolBreak = F
 
@@ -752,9 +808,9 @@ FedorovWynn = function(sensF, tol, maxIter=1e4) {
     }
 
     names(sens) = NULL
-    tag$FedorovWynn$tolBreak = tolBreak
-    tag$FedorovWynn$nIter = iIter
-    return(design(dx, w, tag=tag))
+    tag$Wynn$tolBreak = tolBreak
+    tag$Wynn$nIter = iIter
+    return(design(x, w, tag=tag))
 }
 
 
@@ -769,12 +825,12 @@ wPoint = function(x, w) {
 #'
 #' \code{reduce} drops insignificant points and merges points in a certain neighbourhood.
 #'
-#' @param des some design.
+#' @param des a design.
 #' @param distMax maximum euclidean distance between points to be merged.
 #' @param wMin minimum weight a point shall have to be considered significant.
 #'
 #' @return \code{reduce} returns an object of \code{class} \code{"desigh"}.
-#' See \code{design} for its structural definition.
+#' See \code{\link{design}} for its structural definition.
 #'
 #' @seealso \code{\link{design}}
 #'
@@ -810,10 +866,10 @@ reduce = function(des, distMax, wMin=1e-6) {
 
 #' Get Fisher Information
 #'
-#' \code{getM} returns the Fisher information corresponding to some model and some design.
+#' \code{getM} returns the Fisher information corresponding to a model and a design.
 #'
-#' @param mod some model.
-#' @param des some design.
+#' @param mod a model.
+#' @param des a design.
 #'
 #' @return \code{getM} returns a named matrix, the Fisher information.
 #'
@@ -824,7 +880,9 @@ reduce = function(des, distMax, wMin=1e-6) {
 #' @export
 getM = function(mod, des) {
     m = getm(mod, des$x)
-    return(getM_(m, des$w))
+    r = getM_(m, des$w)
+    dimnames(r) = dimnames(mod$fisherI[[1]])
+    return(r)
 }
 
 
@@ -836,21 +894,30 @@ add.alpha <- function(col, alpha=1){
     apply(sapply(col, col2rgb)/255, 2, function(x) rgb(x[1], x[2], x[3], alpha=alpha))
 }
 
+getBaseDesign = function(des) {
+    tag = des$tag
+    if (!is.null(tag[['Wynn']]))
+        return(des)
+    if (!is.null(tag[['reduce']]))
+        return(getBaseDesign(tag$reduce$des))
+    return(NULL)
+}
+
 #' Plot Design
 #'
 #' \code{plot.desigh} creates a one-dimensional design plot, optionally together with a specified sensitivity curve.
 #' If the design space has additional dimensions, the design is projected on a specified margin.
 #'
-#' @param x some design.
+#' @param x a design.
 #' @param sensx (optional) a row matrix of points.
 #' @param sens (optional) either a vector of sensitivities or a sensitivity function.
-#' The latter shall rely on defaults, see \code{Dsensitivity} for details.
+#' The latter shall rely on defaults, see \code{\link{Dsensitivity}} for details.
 #' @param sensTol (optional) a single numeric.
 #' Adds a horizontal line at this sensitivity level.
 #' @param ... other arguments passed to plot.
 #' @param margins a vector of indices, the dimensions to project on.
 #' Defaults to \code{1}.
-#' @param desSens if \code{TRUE} and \code{sens} is not specified then the sensitivity function which potentially was used in \code{FedorovWynn} is taken as \code{sens}.
+#' @param desSens if \code{TRUE} and \code{sens} is not specified then the sensitivity function which potentially was used in \code{Wynn} is taken as \code{sens}.
 #' @param sensPch either a character vector of point 'characters' to add to the sensitivity curve or \code{NULL}.
 #' @param sensArgs a list of arguments passed to draw calls related to the sensitivity.
 #'
@@ -862,6 +929,11 @@ add.alpha <- function(col, alpha=1){
 #'
 #' @export
 plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL, desSens=T, sensPch='+', sensArgs=list()) {
+    points = function(..., axes) graphics::points(...)
+    abline = function(..., axes) graphics::abline(...)
+    axis = function(..., axes) graphics::axis(...)
+    mtext = function(..., axes) graphics::mtext(...)
+
     des = x # workaround for S3 requirement
 
     args = list(...)
@@ -883,14 +955,20 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL
     w = w[ord]
 
     ## lookup design sensF
-    if (is.null(sens) && desSens)
-        sens = des$tag$FedorovWynn$sensF
+    if (is.null(sens) && desSens) {
+        d = getBaseDesign(des)
+        sens = d$tag[['Wynn']]$sensF
+        if (is.null(sensx) && !is.null(sens)) {
+            sensx = attr(sens, 'defaults')[['x']]
+            sens = sens(desw=d$w)
+        }
+    }
 
     ## prepare sensitivity
     if (!is.null(sens)) {
         if (is.function(sens)) {
             if (is.null(sensx)) {
-                sensx = attr(sens, 'defaults')$x
+                sensx = attr(sens, 'defaults')[['x']]
                 sens = sens(desw=des$w, desx=des$x)
             } else
                 sens = sens(x=sensx, desw=des$w, desx=des$x)
@@ -943,7 +1021,8 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL
             else if (isTRUE(dylim[2] < sensTol))
                 dylim = c(dylim[1], sensTol)
 
-            margs = modifyList(list(sensx, sens, type='l', ylim=dylim, ylab='sensitvity'), sensArgs)
+            defaultYlab = ifelse(ncol(des$x) == 1, 'sensitivity', 'maximum sensitivity')
+            margs = modifyList(list(sensx, sens, type='l', ylim=dylim, ylab=defaultYlab), sensArgs)
             ylab = margs$ylab
             margs = modifyList(margs, list(xlim=xlim, axes=F, xlab='', ylab=''))
             do.call(plot, margs)
@@ -954,10 +1033,12 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL
                 do.call(abline, margs)
             }
 
-            margs = modifyList(list(4), sensArgs)
-            if (!is.null(margs$col) && is.null(margs$col.axis))
-                margs$col.axis = margs$col
-            do.call(axis, margs)
+            if (!isTRUE(sensArgs[['axes']] == F)) {
+                margs = modifyList(list(4), sensArgs)
+                if (!is.null(margs[['col']]) && is.null(margs[['col.axis']]))
+                    margs$col.axis = margs$col
+                do.call(axis, margs)
+            }
 
             margs = modifyList(list(ylab, side=4, line=3), sensArgs)
             do.call(mtext, margs)
@@ -984,21 +1065,27 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL
 
 #' D Efficiency
 #'
-#' \code{Defficiency} computes the D- or Ds-efficiency measure for some design with respect to some reference design.
+#' \code{Defficiency} computes the D-, D_s or D_A-efficiency measure for a design with respect to a reference design.
+#'
+#' Indices supplied to argument \code{A} correspond to the subset of parameters defined by argument \code{parNames}.
 #'
 #' D efficiency is defined as
-#' \deqn{\left(\frac{\left|M(\xi,\bar{\theta})\right|}{\left|M(\xi^{*},\bar{\theta})\right|}\right)^{1/n}}{( det(M(\xi, \theta))  /  det(M(\xi*, \theta)) )**(1/n)}
-#' and Ds efficiency as
-#' \deqn{\left(\frac{\left|M_{11}(\xi,\bar{\theta})-M_{12}(\xi,\bar{\theta})M_{22}^{-1}(\xi,\bar{\theta})M_{12}^{T}(\xi,\bar{\theta})\right|}{\left|M_{11}(\xi^{*},\bar{\theta})-M_{12}(\xi^{*},\bar{\theta})M_{22}^{-1}(\xi^{*},\bar{\theta})M_{12}^{T}(\xi^{*},\bar{\theta})\right|}\right)^{1/s}}{( det(M11(\xi, \theta) - M12(\xi, \theta) \%*\% solve(M22(\xi, \theta)) \%*\% t(M12(\xi, \theta)))  /  det(M11(\xi*, \theta) - M12(\xi*, \theta) \%*\% solve(M22(\xi*, \theta)) \%*\% t(M12(\xi*, \theta))) )**(1/s)}
+#' \deqn{\left(\frac{\left|M(\xi,\bar{\theta})\right|}{\left|M(\xi^{*},\bar{\theta})\right|}\right)^{1/n}}{( det(M(\xi, \theta)) / det(M(\xi*, \theta)) )**(1/n)}
+#' and D_A efficiency as
+#' \deqn{\left(\frac{\left|A^{T}M(\xi^{*},\bar{\boldsymbol{\theta}})^{-1}A\right|}{\left|A^{T}M(\xi,\bar{\boldsymbol{\theta}})^{-1}A\right|}\right)^{1/s}}{( det(t(A) \%*\% solve(M(\xi*, \theta)) \%*\% A) / det(t(A) \%*\% solve(M(\xi, \theta)) \%*\% A) )**(1/s)}
 #'
-#' where \eqn{M_{11}}{M11} is the submatrix corresponding to the parameters in \code{dsNames}, \eqn{M_{22}}{M22} is the submatrix corresponding to the parameters in \code{names} which are not in \code{dsNames}, and \eqn{M_{12}}{M12} is defined as the resulting off diagonal submatrix.
-#'
-#' @param des some design.
-#' @param ref some design, the reference.
-#' @param mod some model.
-#' @param dsNames a vector of names or indices, the subset of parameters to use.
-#' Defaults to the set of parameters in use.
-#' @param names a vector of names or indices, the set of parameters to use.
+#' @param des a design.
+#' @param ref a design, the reference.
+#' @param mod a model.
+#' @param A for \itemize{
+#' \item D-efficiency: \code{NULL}
+#' \item D_s-efficiency: a vector of names or indices, the subset of parameters of interest.
+#' \item D_A-efficiency: either \itemize{
+#'   \item directly: a matrix without row names.
+#'   \item indirectly: a matrix with row names corresponding to the parameters.
+#'   }
+#' }
+#' @param parNames a vector of names or indices, the subset of parameters to use.
 #' Defaults to the parameters for which the Fisher information is available.
 #'
 #' @return \code{Defficiency} returns a single numeric.
@@ -1008,24 +1095,20 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL
 #' @examples ## see examples for param
 #'
 #' @export
-Defficiency = function(des, ref, mod, dsNames=NULL, names=NULL) {
-    tt = getDsPar(mod, dsNames, names)
-    idcs = tt$idcs
-    sIdcs = tt$sIdcs
+Defficiency = function(des, ref, mod, A=NULL, parNames=NULL) {
+    tt = getDAPar(mod, A, parNames)
+    parNames = tt$parNames
     A = tt$A
 
-    m = getm(mod, des$x, idcs)
+    m = getm(mod, des$x, parNames)
     M = getM_(m, des$w)
 
-    m = getm(mod, ref$x, idcs)
+    m = getm(mod, ref$x, parNames)
     Mref = getM_(m, ref$w)
 
     if (is.null(A))
-        return((det(M) / det(Mref)) ** (1/length(idcs)))
+        return( (det(M) / det(Mref))**(1/nrow(M)) )
 
-    M12 = M[sIdcs, -sIdcs, drop=F]
-    Mref12 = Mref[sIdcs, -sIdcs, drop=F]
-
-    return(( det(M[sIdcs, sIdcs, drop=F] - M12 %*% solve(M[-sIdcs, -sIdcs, drop=F]) %*% t(M12)) / det(Mref[sIdcs, sIdcs, drop=F] - Mref12 %*% solve(Mref[-sIdcs, -sIdcs, drop=F]) %*% t(Mref12)) ) ** (1/ncol(A)))
+    return( (det(t(A) %*% solve(Mref) %*% A) / det(t(A) %*% solve(M) %*% A) )**(1/ncol(A)) )
 }
 

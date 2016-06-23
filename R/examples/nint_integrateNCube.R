@@ -2,6 +2,8 @@
 nint_integrate(sin, nint_space(nint_intvDim(pi/4, 3*pi/4)))
 
 
+dfltNCube = nint_integrateNCube
+
 ## prepare for integrateA
 ncube = function(f, lowerLimit, upperLimit, ...) {
     cat('using integrateA\n')
@@ -39,3 +41,6 @@ assign('nint_integrateNCube', ncube, envir=environment(nint_integrate))
 
 ## integrate with SparseGrid
 nint_integrate(sin, nint_space(nint_intvDim(pi/4, 3*pi/4)))
+
+
+assign('nint_integrateNCube', dfltNCube, envir=environment(nint_integrate))

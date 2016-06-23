@@ -1,3 +1,5 @@
+dfltNFunc = nint_integrateNFunc
+
 ## area of circle
 s = nint_space(
     nint_intvDim(-1, 1),
@@ -36,3 +38,6 @@ assign('nint_integrateNFunc', f, envir=environment(nint_integrate))
 
 ## integrate with custom solution
 try(nint_integrate(function(x) 1, s))
+
+
+assign('nint_integrateNFunc', dfltNFunc, envir=environment(nint_integrate))

@@ -29,9 +29,10 @@ nint_integrate(sin, s) # 0
 s = nint_space(nint_intvDim(-Inf, Inf),
                nint_intvDim(-Inf, Inf))
 ## probability integral transform
-tt = nint_transform(function(x) prod(dnorm(x)), s, 1:2, list(
+tt = nint_transform(function(x) prod(dnorm(x)), s, list(list(
+    dIdcs=1:2,
     g=function(x) pnorm(x),
-    gij=function(y) { t1 = qnorm(y); cbind(t1, 1/dnorm(t1)) }))
+    giDg=function(y) { t1 = qnorm(y); list(t1, dnorm(t1)) })))
 tt$space
 nint_integrate(tt$f, tt$space) # 1
 

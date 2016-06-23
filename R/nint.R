@@ -86,10 +86,10 @@ nint_gridDim = function(x) {
 #' Interval Dimension
 #'
 #' \code{nint_intvDim} defines a fixed interval.
-#' The limits may be (negative) \code{Inf}.
+#' The bounds may be (negative) \code{Inf}.
 #'
-#' @param x either a single numeric, the lower limit, or a vector of length 2, the lower and upper limit.
-#' @param b the upper limit if \code{x} is the lower limit.
+#' @param x either a single numeric, the lower bound, or a vector of length 2, the lower and upper bound.
+#' @param b the upper bound if \code{x} is the lower bound.
 #'
 #' @return \code{nint_intvDim} returns a vector of length 2 with the dimension type attribute set to \code{nint_TYPE_INTV_DIM}.
 #'
@@ -101,7 +101,7 @@ nint_intvDim = function(x, b=NULL) {
         x = as.vector(x)
     else
         x = c(x, b)
-    if (length(x) != 2) stop('exactly two values shall be specified as limits')
+    if (length(x) != 2) stop('exactly two values shall be specified as bounds')
     attr(x, 'nint_dtype') = nint_TYPE_INTV_DIM
     return(x)
 }
@@ -113,7 +113,7 @@ nint_intvDim = function(x, b=NULL) {
 #'
 #' Obviously if \code{x} returns an object of type \code{nint_intvDim} the dimension is continuous, and discrete otherwise.
 #'
-#' As the argument to \code{x} is only partially defined the user has to make sure that the function solely depends on values up to the current dimension.
+#' As the argument to \code{x} is only partially defined the user has to ensure that the function solely depends on values up to the current dimension.
 #'
 #' @param x \code{function(x)}, where \code{x} is the partially realized point in the space.
 #' It shall return an object of type \code{nint_intvDim} or a vector.
@@ -146,14 +146,9 @@ nint_toString_dim = function(x) {
 
 nint_print_spaceDims = function(x) {
     x = flatten(x)
-    if (length(x) == 0)
-        return()
-    cat(nint_toString_dim(x[[1]]))
-    for (i in seq1(2, length(x))) {
-        cat(' or ')
-        cat(nint_toString_dim(x[[i]]))
-    }
-    cat('\n')
+    x = lapply(x, nint_toString_dim)
+    x = paste(x, collapse=' or ')
+    cat(x, '\n')
 }
 
 
@@ -247,7 +242,7 @@ nint_space = function(...) {
 #' Each dimension has its own representation which should be easy to understand.
 #' \code{nint_scatDim} representations are marked by \code{"s()"}.
 #'
-#' @param x some space.
+#' @param x a space.
 #' @param ... ignored.
 #'
 #' @seealso \code{\link{nint_space}}
@@ -262,9 +257,9 @@ print.nint_space = function(x, ...) {
 
 #' Validate Space
 #'
-#' \code{nint_validateSpace} performs a couple of checks on some space to make sure it is properly defined.
+#' \code{nint_validateSpace} performs a couple of checks on a space or list structure of spaces to ensure it is properly defined.
 #'
-#' @param x some space.
+#' @param x a space or list structure of spaces.
 #'
 #' @return \code{nint_validateSpace} returns 0 if everything is fine, or an error code.
 #' See \code{\link{nint_ERROR}}.
@@ -303,9 +298,9 @@ nint_validateSpace_getRefl_ = function(x) {
 
 #' Expand Space
 #'
-#' \code{nint_expandSpace} expands some space or list structure of spaces to a list of true subspaces.
+#' \code{nint_expandSpace} expands a space or list structure of spaces to a list of true subspaces.
 #'
-#' @param x some space or a list structure of spaces.
+#' @param x a space or list structure of spaces.
 #'
 #' @return \code{nint_expandSpace} returns a list of spaces.
 #' Each space is a true subspace.
@@ -347,7 +342,7 @@ nint_ispace = function(x) {
     ##   - function (f)
     ## - bind scattered dimensions by column
     ## - expand grid dimensions to grid
-    ## - bind interval limits by row
+    ## - bind interval bounds by row
     ## - create function list
     ##
     ## - result := list(type=list(i=idcs, g=data))
@@ -395,7 +390,7 @@ nint_ispace = function(x) {
         } else if (type == nint_TYPE_INTV_DIM) {
             ii = c(ii, i)
         } else {
-            stop('unknown dim type')
+            stop('unknown dimension type')
         }
     }
 
@@ -466,105 +461,400 @@ nint_ispaces = function(x) {
 #}
 
 
-ratiog = function(x) {
-    s = sign(x)
-    if (any(s == 0, na.rm=T))
-        s[s == 0] = 1
-    return( ifelse(is.infinite(x), s, x/abs(x + s)) )
+#' Tangent Transform
+#'
+#' \code{nint_tanTransform} creates the transformation \code{g(x) = atan((x - center)/scale)} to be used in \code{nint_transform}.
+#'
+#' @param center,scale see \code{g(x)}.
+#' @param dIdcs an integer vector of indices, the dimensions to transform.
+#'
+#' @return \code{nint_tanTransform} returns a named list of two functions \code{"g"} and \code{"giDgi"} as required by \code{nint_transform}.
+#'
+#' @seealso \code{\link{nint_transform}}
+#'
+#' @example R/examples/nint_tanTransform.R
+#'
+#' @export
+nint_tanTransform = function(center, scale, dIdcs=NULL) {
+    tt = list(center, scale, dIdcs)
+    g = function(x) atan((x - center)/scale)
+    giDgi = function(y) {
+        ty = tan(y)
+        list(ty*scale + center,
+             scale*(1 + ty^2)) # better than scale/(cos(y)^2)
+    }
+    r = list(g=g, giDgi=giDgi)
+    if (!is.null(dIdcs))
+        r$dIdcs = dIdcs
+    return(r)
 }
 
-transforms = list(tan=list(g=atan,
-                           gij=function(x) { t1 = tan(x); cbind(t1, 1 + t1**2) }),
-                  ratio=list(g=ratiog,
-                             gij=function(x) { t1 = 1/(1 - abs(x)); cbind(x*t1, t1**2)}))
+
+transform_error1 = 'transformed function dimensions shall return interval dimensions'
+
+transform_funcDim = function(d, deps=NULL, g=NULL, xx=NULL, i=NULL, o=NULL, addNoDeps=F) {
+    if (!is.null(g)) { # g
+        tt = list(d, deps, g, xx, i, o)
+
+        r = function(x) { # transform
+            nx = x
+            for (dep in deps)
+                nx[ dep[['dIdcs']] ] = dep[['giD']](x[ dep[['inDIdcs']] ])[[1]]
+            nd = d(nx)
+
+            dtype = nint_dtype(nd)
+            if (is.null(dtype) || dtype != nint_TYPE_INTV_DIM)
+                stop(transform_error1)
+
+            xx[i] = nd[1]
+            a = g(xx)[o]
+            xx[i] = nd[2]
+            b = g(xx)[o]
+            if (b < a)
+                return(nint_intvDim(b, a))
+            return(nint_intvDim(a, b))
+        }
+
+    } else if (!is.null(deps) && length(deps) != 0) { # !g, deps
+        tt = list(d, deps)
+
+        r = function(x) { # passive transform only
+            nx = x
+            for (dep in deps)
+                nx[ dep[['dIdcs']] ] = dep[['giD']](x[ dep[['inDIdcs']] ])[[1]]
+            return(d(nx))
+        }
+
+    } else # !g, !deps
+        r = d
+
+    r = nint_funcDim(r)
+    if (addNoDeps) {
+        if (!is.null(deps) && length(deps) != 0)
+            attr(r, 'noDeps') = transform_funcDim(d, deps=NULL, g=g, xx=xx, i=i, o=o, addNoDeps=F)
+        else
+            attr(r, 'noDeps') = r
+    }
+    return(r)
+}
+
+transform_tranIOd = function(trans, maxDIdx) {
+    dIdcs = lapply(trans, function(tran) tran$dIdcs)
+
+    r = rep(list(NULL), maxDIdx)
+    r[unlist(dIdcs, recursive=F)] = unlist(lapply(trans, function(tran)
+        mapply(function(i, o)
+            list(tran=tran, i=i, o=o)
+        , match(tran$dIdcs, tran$inDIdcs), seq1(1, length(tran$dIdcs)), SIMPLIFY=F)
+    ), recursive=F)
+
+    return(r)
+}
+
+transform_space = function(space, trans, funcDimToF, defaultToF) {
+    error1 = 'dimensions shall be either of type interval or function'
+
+    dIdcs = lapply(trans, function(tran) tran$dIdcs)
+    minDIdcs = sapply(dIdcs, min)
+    maxDIdx = max(zmax(unlist(dIdcs, recursive=F)), funcDimToF)
+
+    # per dimension
+    depsd = lapply(seq1(1, maxDIdx), function(dIdx) trans[minDIdcs < dIdx]) # passive funcDim transformations
+    tranIOd = transform_tranIOd(trans, maxDIdx)
+    if (defaultToF)
+        isToFd = rep(T, maxDIdx)
+    else
+        isToFd = seq1(1, maxDIdx) %in% funcDimToF
+
+    r = rlapply(list(space), function(space) { # for each true space
+        nDims = lapply(seq1(1, length(space)), function(dIdx) { # for each dimension
+            d = space[[dIdx]]
+            if (dIdx <= maxDIdx) {
+                deps = depsd[[dIdx]]
+                tranIO = tranIOd[[dIdx]]
+                isToF = isToFd[dIdx]
+            } else {
+                deps = trans
+                tranIO = NULL
+                isToF = defaultToF
+            }
+            if (length(deps) == 0 && is.null(tranIO))
+                return(d)
+
+            if (!is.null(tranIO)) { # transform
+                tran = tranIO$tran
+                i = tranIO$i
+                o = tranIO$o
+                xx = rep(NA_real_, length(tran$inDIdcs))
+
+                r = rlapply(list(d), function(d) { # for each true dimension
+                    dtype = nint_dtype(d)
+                    if (is.null(dtype))
+                        stop(error1)
+
+                    if (dtype == nint_TYPE_INTV_DIM) { # transform interval dimension
+                        xx[i] = d[1]
+                        a = tran$g(xx)[o]
+                        xx[i] = d[2]
+                        b = tran$g(xx)[o]
+                        if (b < a)
+                            return(nint_intvDim(b, a))
+                        return(nint_intvDim(a, b))
+                    }
+
+                    if (dtype != nint_TYPE_FUNC_DIM)
+                        stop(error1)
+                    return(transform_funcDim(d, deps=deps, g=tran$g, xx=xx, i=i, o=o, addNoDeps=isToF)) # transform function dimension
+                })[[1]]
+
+            } else { # passive transform
+                r = rlapply(list(d), function(d) { # for each true dimension
+                    dtype = nint_dtype(d)
+                    if (is.null(dtype) || dtype != nint_TYPE_FUNC_DIM)
+                        return(d)
+
+                    return(transform_funcDim(d, deps=deps, addNoDeps=isToF))
+                })[[1]]
+            }
+            return(r)
+        })
+
+        r = space
+        r[] = nDims
+        return(r)
+    })[[1]]
+
+    return(r)
+}
+
+transform_f = function(f, trans, zeroInf) {
+    tt = list(f, trans, zeroInf)
+
+    trans = lapply(trans, function(tran) {
+        tran$valid = which(!is.na(tran$dIdcs))
+        return(tran)
+    })
+
+    r = function(x, ...) {
+        J = 1
+        iJ = 1
+        for (tran in trans) {
+            tt = tran[['giD']](x[ tran[['inDIdcs']] ])
+            valid = tran[['valid']]
+            x[tran[['dIdcs']][valid]] = tt[[1]][valid]
+            if (tran[['isDgi']])
+                J = J * prod(tt[[2]], na.rm=T)
+            else
+                iJ = iJ * prod(tt[[2]], na.rm=T)
+        }
+        J = J / iJ
+
+        v = f(x, ...)
+        if (is.infinite(J))
+            if (v == 0)
+                return(zeroInf)
+        return(v*abs(J))
+    }
+    return(r)
+}
+
+transform_funcDimToF = function(d, dIdx, deps=NULL) {
+    tt = list(d, dIdx, deps)
+
+    giDgi = function(y) {
+        ny = y
+        for (dep in deps)
+            ny[ dep[['dIdcs']] ] = dep[['giD']](y[ dep[['inDIdcs']] ])[[1]]
+        nd = d(ny)
+
+        dtype = nint_dtype(nd)
+        if (is.null(dtype) || dtype != nint_TYPE_INTV_DIM)
+            stop(transform_error1)
+
+        t1 = nd[2] - nd[1]
+        return(list(y[dIdx]*t1 + nd[1],
+                    t1))
+    }
+    return(giDgi)
+}
 
 #' Transform Integral
 #'
-#' \code{nint_transform} applies monotonic transformations to some integrand and space.
-#' A common use case is to apply the probability integral transform, or to transform infinite limits to finite ones.
+#' \code{nint_transform} applies monotonic transformations to an integrand and a space or list structure of spaces.
+#' Common use cases include the probability integral transform, the transformation of infinite limits to finite ones and function dimensions to interval dimensions.
 #'
-#' If the transformation is vector valued, that is \code{y = c(y1, ..., yn) = g(c(x1, ..., xn))}, then each component of \code{y} shall exclusively depend on the corresponding component of \code{x}.
-#' So \code{y[i] = g[i](x[i])} for some implicit function \code{g[i]}.
+#' Interval dimensions and function dimensions returning interval dimensions only.
 #'
-#' Builtins: \itemize{
-#' \item tan: \code{g(x) = atan(x) = y}
-#' \item ratio: \code{g(x) = x/abs(x + sign(x))} = y with \code{sign(0) == 1}
+#' If a transformation is vector valued, that is \code{y = c(y1, ..., yn) = g(c(x1, ..., xn))}, then each component of \code{y} shall exclusively depend on the corresponding component of \code{x}.
+#' So \code{y[i] = g[i](x[i])} for an implicit function \code{g[i]}.
+#'
+#' The transformation of function dimensions to interval dimensions is performed after the transformations defined by \code{trans}.
+#' Consecutive linear transformations, \code{g(x[dIdx]) = (x[dIdx] - d(x)[1])/(d(x)[2] - d(x)[1])} where \code{d} is the function dimension at dimension \code{dIdx}, are used.
+#' Deciding against this transformation probably leads to considerable loss in computational performance.
+#'
+#' @param f \code{function(x, ...)}, an integrand.
+#' @param space a space or list structure of spaces.
+#' @param trans a list of named lists, each containing \code{dIdcs}, \code{g} and \code{giDgi} or \code{giDg}, where\itemize{
+#' \item \code{dIdcs} is an integer vector of indices, the dimensions to transform
+#' \item \code{g=function(x[dIdcs])} mapping \code{x[dIdcs]} to \code{y}
+#' \item \code{giDgi=function(y)} returning a list of two, the inverse \code{gi(y) = x[dIdcs]} and the first derivatives of \code{gi(y)} with respect to \code{y}
+#' \item or \code{giDg=function(y)} returning the inverse and the first derivatives of \code{g(x[dIdcs])} with respect to \code{x[dIdcs]}.
 #' }
+#' @param funcDimToF an integer vector of indices, the dimensions to look for function dimensions to transform to interval dimensions.
+#' \code{0} indicates all dimensions.
+#' @param zeroInf a single value, used when \code{f} returns \code{0} and the Jacobian is infinite.
 #'
-#' @param f \code{function(x, ...)}, the integrand.
-#' @param space some space.
-#' @param dIdcs an integer vector of indices, the dimensions to transform.
-#' @param trans either the name of some builtin transformation or \code{list(g=function(x), gij=function(y))} where \code{g(x) = y} and \code{gij} evaluates to the column matrix of \code{gi(y) = x} and its first derivative with respect to \code{y}.
-#' @param infZero the value to return if the jacobian is infinite and \code{f} returns \code{0}.
+#' @return \code{nint_transform} returns either a named list containing the transformed integrand and space, or a list of such.
 #'
-#' @return \code{nint_transform} returns a named list containing the transformed integrand and space.
-#'
-#' @seealso \code{\link{nint_integrate}}, \code{\link{nint_space}}, \code{\link{fisherI}}
+#' @seealso \code{\link{nint_integrate}}, \code{\link{nint_space}}, \code{\link{nint_tanTransform}}, \code{\link{fisherI}}
 #'
 #' @example R/examples/nint_transform.R
 #'
 #' @export
-nint_transform = function(f, space, dIdcs, trans, infZero=0) {
-    tt = list(f, space, dIdcs, trans, infZero)
+nint_transform = function(f, space, trans, funcDimToF=0, zeroInf=0) {
+    tt = list(f, space, trans, funcDimToF, zeroInf)
 
-    if (is.character(trans)) {
-        tt = transforms[[trans]]
-        if (is.null(tt))
-            stop(paste('unknown transformation \'', trans, '\'', sep=''))
-        trans = tt
-    }
-
-    g = trans[['g']]
-    gij = trans[['gij']]
-    neg = 0
-
-    rspace = lapply(flatten(space), function(space) { # for each true space
-        x = rep(NA, length(dIdcs))
-        rr = mapply(function(i, d) { # for each dimension
-            rapply(list(d), function(d) { # for each true dimension
-                dtype = nint_dtype(d)
-                if (is.null(dtype) || dtype != nint_TYPE_INTV_DIM)
-                    stop('dimensions shall exclusively be of type interval')
-
-                v = sapply(d, function(xx) { # transform values
-                    x[i] = xx
-                    return(g(x)[i])
-                })
-
-                if (diff(v) < 0) {
-                    neg <<- neg + 1
-                    v = v[c(2, 1)]
-                }
-                return(nint_intvDim(v))
-            }, how='replace')[[1]]
-        }, seq1(1, length(dIdcs)), space[dIdcs], SIMPLIFY=F)
-        r = space
-        r[dIdcs] = rr
-        return(r)
+    # prepare
+    trans = lapply(trans, function(tran) {
+        if (!is.null(tran[['giDgi']])) {
+            isDgi = T
+            giD = tran$giDgi
+        } else if (!is.null(tran[['giDg']])) {
+            isDgi = F
+            giD = tran$giDg
+        } else
+            stop('transformations shall contain giDg or giDgi')
+        dIdcs = tran[['dIdcs']]
+        list(inDIdcs=dIdcs, g=tran[['g']], giD=giD, dIdcs=dIdcs, isDgi=isDgi)
     })
 
-    if (length(rspace) == 1)
-        rspace = rspace[[1]]
+    dIdcs = lapply(trans, function(tran) tran$dIdcs)
+    if (any(duplicated(unlist(dIdcs, recursive=F))))
+        stop('each dimension shall be specified only once')
 
-    sig = ifelse(neg %% 2, -1, 1)
-    rf = function(x, ...) {
-        xx = x[dIdcs]
-        t1 = gij(xx)
-        x[dIdcs] = t1[,1]
-        v = f(x, ...)
-        j = prod(t1[,2])
-        if (is.infinite(j)) {
-            if (v == 0) {
-                v = infZero
-                j = sign(j)
-            }
-        }
-        return(sig*v*j)
+    defaultToF = isTRUE(funcDimToF == 0)
+
+    if (length(funcDimToF) == 0) {
+        # transform f
+        rf = transform_f(f, trans, zeroInf)
+
+        # transform space
+        rspace = space
+
+        if (length(trans) != 0)
+            rspace = transform_space(rspace, trans, funcDimToF, defaultToF)
+
+    } else {
+        funcDimToF = sort(funcDimToF)
+        nDim = nint_intvDim(0, 1)
+        g = function(x) stop('shouldn\'t happen')
+
+        maxDIdx = max(zmax(unlist(dIdcs, recursive=F)), funcDimToF)
+        tranIOd = transform_tranIOd(trans, maxDIdx)
+
+        # prepare space
+        rspace = space
+
+        if (length(trans) != 0)
+            rspace = transform_space(rspace, trans, funcDimToF, defaultToF)
+
+        r = lapply(flatten(rspace), function(space) { # for each true space
+            if (defaultToF)
+                funcDimToF = seq1(1, length(space))
+
+            # split funcDim from others
+            dims = lapply(space[funcDimToF], function(d) { # for each dimension
+                dd = flatten(d)
+
+                isFunc2 = sapply(dd, function(d) {
+                    dtype = nint_dtype(d)
+                    return(!is.null(dtype) && dtype == nint_TYPE_FUNC_DIM)
+                })
+                if (all(isFunc2)) {
+                    names(dd) = rep('f', length(dd))
+                    return(dd)
+                }
+
+                others = dd[!isFunc2]
+                if (length(others) == 1)
+                    others = others[[1]]
+
+                dd = dd[isFunc2]
+                names(dd) = rep('f', length(dd))
+
+                return(c(dd, list(o=others)))
+            })
+
+            lapply(lproduct(dims), function(dims) { # for each combination of dimensions
+                isFunc2 = (names(dims) == 'f')
+                funcDimToF2 = funcDimToF[isFunc2]
+                dims2 = dims[isFunc2]
+
+                # create trans
+                preTrans = lapply(trans, function(tran) {
+                    i = which(tran$dIdcs %in% funcDimToF2)
+                    if (length(i) == length(tran$dIdcs))
+                        return(NULL)
+                    tran$inDIdcs[i] = NA
+                    tran$dIdcs[i] = NA
+                    return(tran)
+                })
+                preTrans = preTrans[!sapply(preTrans, is.null)]
+
+                trans1 = list()
+                for (i in seq1(1, length(funcDimToF2))) {
+                    dIdx = funcDimToF2[i]
+                    giDgi = transform_funcDimToF(dims2[[i]], dIdx, deps=trans1)
+                    n = list(inDIdcs=1:dIdx, g=g, giD=giDgi, dIdcs=dIdx, isDgi=T)
+                    trans1 = c(trans1, list(n))
+                }
+
+                trans2 = mapply(function(d, dIdx) {
+                    noDeps = attr(d, 'noDeps')
+                    if (is.null(noDeps))
+                        noDeps = d
+                    giDgi = transform_funcDimToF(noDeps, dIdx)
+                    list(inDIdcs=1:dIdx, g=g, giD=giDgi, dIdcs=dIdx, isDgi=T)
+                }, dims2, funcDimToF2, SIMPLIFY=F)
+
+                postTrans = lapply(funcDimToF2, function(dIdx) {
+                    if (maxDIdx < dIdx)
+                        return(NULL)
+                    tranIO = tranIOd[[dIdx]]
+                    if (is.null(tranIO))
+                        return(NULL)
+                    tran = tranIO$tran
+                    tran$inDIdcs[-tranIO$i] = NA
+                    tran$dIdcs[-tranIO$o] = NA
+                    return(tran)
+                })
+
+                interleaved = rep(list(NULL), length(trans2) + length(postTrans))
+                interleaved[seq(1, by=2, length.out=length(trans2))] = trans2
+                interleaved[seq(2, by=2, length.out=length(postTrans))] = postTrans
+                interleaved = interleaved[!sapply(interleaved, is.null)]
+
+                # transform f
+                rf2 = transform_f(f, c(preTrans, interleaved), zeroInf)
+
+                # transform space
+                rspace2 = space
+                rspace2[funcDimToF] = dims
+                rspace2 = transform_space(rspace2, trans1, c(), F)
+                rspace2[funcDimToF2] = rep(list(nDim), length(funcDimToF2))
+
+                list(f=rf2, space=rspace2)
+            })
+        })
+
+        r = unlist(r, recursive=F)
+        if (length(r) == 1)
+            r = r[[1]]
+        return(r)
     }
 
     return(list(f=rf, space=rspace))
 }
-
 
 
 #' Integrate Hypercube
@@ -593,11 +883,11 @@ nint_transform = function(f, space, dIdcs, trans, infZero=0) {
 NULL
 
 #' @details The function built by \code{nint_integrateNCube_integrate} calls \code{integrate} (argument) recursively.
-#' The number of function evaluations therefore increases exponentially with the number of dimensions (\code{(subdivisions * 21) ** D} if \code{stats::integrate}, the default, is used).
+#' The number of function evaluations therefore increases exponentially with the number of dimensions (\code{(subdivisions * 21) ** D} if \code{integrate}, the default, is used).
 #' At the moment it is the default method because no additional package is required.
 #' However, you most likely want to consider different solutions.
 #'
-#' @param integrate \code{function(f, lowerLimit, upperLimit, ...)} which calls \code{stats::integrate}.
+#' @param integrate \code{function(f, lowerLimit, upperLimit, ...)} which calls \code{integrate}.
 #'
 #' @return \code{nint_integrateNCube_integrate} returns a recursive implementation for \code{nint_integrateNCube} based on one dimensional integration.
 #'
@@ -620,7 +910,7 @@ nint_integrateNCube_integrate = function(integrate) {
             }
 
             d <<- d + 1
-            r = integrate(g, lowerLimit[d], upperLimit[d], ...)$value
+            r = integrate(g, lowerLimit[d], upperLimit[d], ...)[['value']]
             d <<- d - 1
             return(r)
         }, 'xx')
@@ -644,7 +934,7 @@ nint_integrateNCube_integrate = function(integrate) {
 nint_integrateNCube_cubature = function(adaptIntegrate) {
     tt = adaptIntegrate
     r = function(f, lowerLimit, upperLimit, ...) {
-        return(adaptIntegrate(f, lowerLimit, upperLimit, ...)$integral)
+        return(adaptIntegrate(f, lowerLimit, upperLimit, ...)[['integral']])
     }
     return(r)
 }
@@ -668,10 +958,10 @@ nint_integrateNCube_SparseGrid = function(createIntegrationGrid) {
         d = upperLimit - lowerLimit
         grid = createIntegrationGrid(n) # generates grid on [0, 1] ** n
         ## transform to [lowerLimit, upperLimit]
-        grid$nodes = sweep(sweep(grid$nodes, 2, d, '*'), 2, lowerLimit, '+')
+        nodes = sweep(sweep(grid[['nodes']], 2, d, '*'), 2, lowerLimit, '+')
 
-        r = apply(grid$nodes, 1, f, ...)
-        r = (r %*% grid$weights)[1, 1] * prod(d)
+        r = apply(nodes, 1, f, ...)
+        r = (r %*% grid[['weights']])[1, 1] * prod(d)
         return(r)
     }
     return(r)
@@ -736,10 +1026,10 @@ nint_integrateNFunc_recursive = function(integrate1) {
             d <<- d + 1
             n = funcs[[d]](x0)
             type = nint_dtype(n)
-            if (type == nint_TYPE_INTV_DIM)
-                r = integrate1(g, n[1], n[2], ...)
-            else
+            if (is.null(type) || type != nint_TYPE_INTV_DIM)
                 r = sum(vapply(n, g, 0, ...))
+            else
+                r = integrate1(g, n[1], n[2], ...)
             d <<- d - 1
             return(r)
         }, 'xx')
@@ -749,13 +1039,13 @@ nint_integrateNFunc_recursive = function(integrate1) {
     return(r)
 }
 
-nint_integrateNFunc = nint_integrateNFunc_recursive(function(...) integrateA(...)$value)
+nint_integrateNFunc = nint_integrateNFunc_recursive(function(...) integrateA(...)[['value']])
 
 
 
 #' Integrate
 #'
-#' \code{nint_integrate} performs summation and integration of some scalar-valued function over some space.
+#' \code{nint_integrate} performs summation and integration of a scalar-valued function over a space or list structure of spaces.
 #'
 #' \code{nint_integrate} uses \code{nint_integrateNCube} and \code{nint_integrateNFunc} to handle interval and function dimensions.
 #' See their help pages on how to deploy different solutions.
@@ -764,7 +1054,7 @@ nint_integrateNFunc = nint_integrateNFunc_recursive(function(...) integrateA(...
 #' Therefore interchangeability (except for function dimensions) is assumed.
 #'
 #' @param f the scalar-valued function (integrand) to be integrated.
-#' @param space some space.
+#' @param space a space or list structure of spaces.
 #' @param ... other arguments passed to \code{f}.
 #'
 #' @return \code{nint_integrate} returns a single numeric.
@@ -780,7 +1070,7 @@ nint_integrate = function(f, space, ...) {
         return(0)
 
     ## globals
-    x = rep(0, sum(sapply(ispaces[[1]], function(x) length(x$i)) ))
+    x = rep(NA_real_, sum(sapply(ispaces[[1]], function(x) length(x$i))))
     ispace = NULL
     gg = list() # sequence of functions
     maxDepth = 0
@@ -805,8 +1095,8 @@ nint_integrate = function(f, space, ...) {
         ## prepare descend
         d <<- d + 1
         idim = ispace[[d]]
-        i <<- idim$i
-        g <<- idim$g
+        i <<- idim[['i']]
+        g <<- idim[['g']]
 
         ## descend
         r = gg[[d]](...)

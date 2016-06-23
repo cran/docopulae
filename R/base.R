@@ -2,11 +2,11 @@
 
 #' Sequence Generation
 #'
-#' \code{seq1} is similar to \code{base::seq}, however \code{by} is strictly \code{1} by default and \code{integer(0)} is returned if range is empty.
+#' \code{seq1} is similar to \code{seq}, however \code{by} is strictly \code{1} by default and \code{integer(0)} is returned if the range is empty.
 #'
 #' @param from,to,by see \code{\link[base]{seq}}.
 #'
-#' @return \code{seq1} returns either \code{integer(0)} if range is empty or what an appropriate call to \code{base::seq} returns otherwise.
+#' @return \code{seq1} returns either \code{integer(0)} if range is empty or what an appropriate call to \code{seq} returns otherwise.
 #'
 #' See examples below.
 #'
@@ -24,42 +24,41 @@ seq1 = function(from, to, by=1) {
 }
 
 
-Derivf = function(f, names) {
-    ## applies Deriv
-    ## ignores [[
-    #temp = Deriv::drule[['[[']]
-    #assign('[[', list(0), envir=Deriv::drule)
+Derivf = function(f, x, ...) {
+    ## x = named unique vector
+    xx = mapply(function(n, v) { # split x into list of named values
+        names(v) = n
+        return(v)
+    }, names(x), x, SIMPLIFY=F)
 
-    r = mapply(Deriv::Deriv, rep(list(f), length(names)), names)
-    base::names(r) = names
-
-    #assign('[[', temp, envir=Deriv::drule)
+    r = mapply(Deriv::Deriv, list(f), xx, MoreArgs=..., SIMPLIFY=F)
+    names(r) = x
     return(r)
 }
 
-Deriv2f = function(f, names) {
-    ## applies Deriv twice
-    ## ignores [[
-    #temp = Deriv::drule[['[[']]
-    #assign('[[', list(0), envir=Deriv::drule)
+Deriv2f = function(f, x, ...) {
+    ## x = named unique vector
+    d = Derivf(f, x, ...)
 
-    d = mapply(Deriv::Deriv, rep(list(f), length(names)), names)
-    base::names(d) = names
+    xx = mapply(function(n, v) { # split x into list of named values
+        names(v) = n
+        return(v)
+    }, names(x), x, SIMPLIFY=F)
+    names(xx) = x
 
-    d2 = mapply(Deriv::Deriv, d, names)
+    d2 = mapply(Deriv::Deriv, d, xx, MoreArgs=...)
+    names(d2) = x
 
-    r = rep(list(NA), length(names))
-    base::names(r) = names
-    r = replicate(length(names), r, simplify=F)
-    base::names(r) = names
+    r = rep(list(NA), length(x))
+    names(r) = x
+    r = replicate(length(x), r, simplify=F)
+    names(r) = x
 
-    for (i in seq1(1, length(names))) {
-        n = names[[i]]
-        r[[n]][[n]] = d2[[i]]
-    }
+    for (n in x)
+        r[[n]][[n]] = d2[[n]]
 
-    combs = combn(names, 2)
-    d2 = mapply(Deriv::Deriv, d[combs[1,]], combs[2,])
+    combs = combn(as.character(x), 2)
+    d2 = mapply(Deriv::Deriv, d[combs[1,]], xx[combs[2,]], MoreArgs=...)
 
     for (i in seq1(1, ncol(combs))) {
         a = combs[1, i]
@@ -68,7 +67,6 @@ Deriv2f = function(f, names) {
         r[[b]][[a]] = d2[[i]]
     }
 
-    #assign('[[', temp, envir=Deriv::drule)
     return(r)
 }
 
@@ -89,7 +87,15 @@ flatten = function(x) {
         return(list(x))
     if (is_flat(x))
         return(x)
-    return(do.call(c, lapply(x, flatten) ))
+    return(do.call(c, lapply(x, flatten)))
+}
+
+rlapply = function(X, FUN, ...) {
+    isList = vapply(X, inherits, T, 'list')
+    r = rep(list(NULL), length(X))
+    r[isList] = lapply(X[isList], rlapply, FUN, ...)
+    r[!isList] = lapply(X[!isList], FUN, ...)
+    return(r)
 }
 
 
@@ -101,18 +107,26 @@ lproduct = function(x) {
     ## product expands a list of lists
     if (length(x) == 0)
         return(list())
-    idcs = lapply(x, seq)
-    idcs = do.call(expand.grid, idcs)
-    colnames(idcs) = names(x[[1]])
-    r = apply(idcs, 1, function(idcs)
-        mapply(function(idx, i) x[[i]][[idx]], idcs, 1:length(x), SIMPLIFY=F))
+    idcs = as.matrix(do.call(expand.grid, lapply(x, seq))) # row matrix of idx combinations
+    m = suppressWarnings(do.call(cbind, x)) # matrix of objects
+    names = suppressWarnings(do.call(cbind, lapply(x, base::names))) # matrix of names
+    off = (0:(ncol(m) - 1)) * nrow(m) # column offsets
+    if (is.null(names))
+        r = apply(idcs, 1, function(idcs) m[idcs + off])
+    else
+        r = apply(idcs, 1, function(idcs) {
+            idcs = idcs + off
+            r = m[idcs]
+            base::names(r) = names[idcs]
+            return(r)
+        })
     return(r)
 }
 
 
 #' Integrate Alternative
 #'
-#' \code{integrateA} is a tolerance wrapper for \code{stats::integrate}.
+#' \code{integrateA} is a tolerance wrapper for \code{integrate}.
 #' It allows \code{integrate} to reach the maximum number of subdivisions.
 #'
 #' See \code{\link[stats]{integrate}}.
@@ -126,7 +140,7 @@ lproduct = function(x) {
 #' @export
 integrateA = function(f, lower, upper, ..., subdivisions=100L, rel.tol=.Machine$double.eps^0.25, abs.tol=rel.tol, stop.on.error=TRUE, keep.xy=FALSE, aux=NULL) {
     r = stats::integrate(f, lower, upper, ..., subdivisions=subdivisions, rel.tol=rel.tol, abs.tol=abs.tol, stop.on.error=F, keep.xy=keep.xy, aux=aux)
-    if ( !(r$message %in% c('OK', 'maximum number of subdivisions reached')) ) {
+    if ( !(r[['message']] %in% c('OK', 'maximum number of subdivisions reached')) ) {
         if (stop.on.error) {
             stop(r$message)
         }
@@ -135,38 +149,50 @@ integrateA = function(f, lower, upper, ..., subdivisions=100L, rel.tol=.Machine$
 }
 
 
+clusterDist = function(distMat, maxDist) {
+    ## distMat = square matrix of pairwise distances between objects
+    ## maxDist = maximum distance within a cluster
+    ##
+    ## in ascending order of rows/columns
+    ## iteratively assigns objects to the nearest cluster
+    ##
+    ## returns a vector of cluster ids
+
+    r = integer(nrow(distMat))
+    if (length(r) == 0)
+        return(r)
+
+    r[1] = 1
+    rr = 2
+
+    for (i in seq1(2, ncol(distMat))) {
+        ds = distMat[1:(i - 1), i] # distances to other objects
+        j = which.min(ds)
+        if (ds[j] <= maxDist)
+            r[i] = r[j]
+        else {
+            r[i] = rr
+            rr = rr + 1
+        }
+    }
+
+    return(r)
+}
+
 clusterPeak = function(x, y, maxDist) {
     ## x = row matrix of points
     ## y = corresponding vector of values (of length nrow(x))
     ##
+    ## in descending order of magnitude of y
     ## iteratively assigns points to the nearest cluster
-    ## in reverse order of magnitude of y
+    ##
+    ## returns a vector of cluster ids
 
-    r = rep(0, length(y))
-
+    ord = order(y, decreasing=T)
+    x = x[ord,, drop=F]
     dists = as.matrix(dist(x))
-    idcs = seq1(1, length(y))
-
-    rr = 1
-
-    while (length(idcs) != 0) {
-        i = which.max(y[idcs])
-        idx = idcs[i] # idx of max y
-        ds = dists[,idx] # distances to all other points
-
-        cIdcs = which(ds <= maxDist) # candidates
-        cIdcs = cIdcs[order(ds[cIdcs])] # sort by distance
-        cSub = match(T, r[cIdcs] != 0) # first already matched
-        if (is.na(cSub)) { # none matched
-            r[idx] = rr
-            rr = rr + 1
-            next
-        }
-
-        r[idx] = r[cIdcs[cSub]] # match
-        idcs = idcs[-i]
-    }
-
+    r = clusterDist(dists, maxDist)
+    r = r[order(ord)]
     return(r)
 }
 
@@ -196,10 +222,10 @@ roworder = function(x, ...) {
 #'
 #' \code{rowmatch} returns a vector of the positions of (first) matches of the rows of its first argument in the rows of its second.
 #'
-#' \code{rowmatch} requires unique rows in \code{x} and \code{table}.
+#' \code{rowmatch} uses compiled C-code.
 #'
-#' @param x a row matrix or data.frame, the rows to be matched.
-#' @param table a row matrix or data.frame, the rows to be matched against.
+#' @param x a row matrix of doubles, the rows to be matched.
+#' @param table a row matrix of doubles, the rows to be matched against.
 #' @param nomatch the value to be returned in the case when no match is found.
 #' Note that it is coerced to \code{integer}.
 #'
@@ -210,24 +236,26 @@ roworder = function(x, ...) {
 #' @example R/examples/rowmatch.R
 #'
 #' @export
+#' @useDynLib docopulae rowmatch_double
 rowmatch = function(x, table, nomatch=NA_integer_) {
+    if (!(is.double(x) && is.matrix(x) && is.double(table) && is.matrix(table)))
+        stop('x and table shall be matrices of doubles')
+
+    if (ncol(x) != ncol(table))
+        stop('x and table shall have the same number of columns')
+
     nomatch = as.integer(nomatch)
 
     ordx = roworder(x)
     ordt = roworder(table)
     sx = x[ordx,, drop=F]
     st = table[ordt,, drop=F]
-    isx = which(duplicated(rbind(st, sx))) - nrow(st) # idcs of sorted table in sorted x
-    ist = which(duplicated(rbind(sx, st))) - nrow(sx) # idcs of sorted x in sorted table
 
-    if (any(isx < 0) || any(ist < 0))
-        stop('rows in x and table shall be unique')
+    i = integer(nrow(x))
+    i = .C('rowmatch_double', sx, as.integer(nrow(sx)), as.integer(ncol(sx)), st, as.integer(nrow(st)), i, PACKAGE='docopulae')[[6]] + 1
 
-    ix = ordx[isx] # idcs of sorted table in x
-    it = ordt[ist] # idcs of sorted x in table
-
-    r = rep(nomatch[1], nrow(x))
-    r[ix] = it
+    r = ordt[i][order(ordx)]
+    r[is.na(r)] = nomatch
     return(r)
 }
 
