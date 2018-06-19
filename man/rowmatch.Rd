@@ -40,4 +40,3 @@ a[is.na(i),] # non matching rows
 \seealso{
 \code{\link[base]{match}}
 }
-

@@ -27,4 +27,3 @@ See \code{\link{design}} for its structural definition.
 \seealso{
 \code{\link{design}}
 }
-

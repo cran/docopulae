@@ -12,7 +12,7 @@ margins = function(y, theta) {
 copula = normalCopula()
 
 # args: function, copula object, parNames
-f1 = buildf(margins, copula, parNames='alpha1')
+f1 = buildf(margins, TRUE, copula, parNames='alpha1')
 f1 # uses theta[['alpha1']] as copula parameter
 
 ## evaluate and plot
@@ -40,7 +40,7 @@ margins = list(list(pdf=quote(dnorm(y[1], theta$mu1, 1)),
 copula = claytonCopula()
 
 # args: list, copula object, parNames
-f2 = buildf(margins, copula, list(alpha='alpha1'))
+f2 = buildf(margins, TRUE, copula, list(alpha='alpha1'))
 f2
 
 ## evaluate and plot
@@ -56,7 +56,7 @@ contour(y1, y2, v2, main='f2', xlab='y1', ylab='y2')
 cexpr = substituteDirect(copula@exprdist$pdf,
                          list(alpha=quote(theta$alpha1)))
 # args: list, expression
-f3 = buildf(margins, cexpr) # equivalent to f2
+f3 = buildf(margins, TRUE, cexpr) # equivalent to f2
 f3
 
 margins = function(y, theta) {
@@ -64,7 +64,7 @@ margins = function(y, theta) {
     cbind(dnorm(y, mean=mu, sd=1), pnorm(y, mean=mu, sd=1))
 }
 # args: function, copula object, parNames
-f4 = buildf(margins, copula, 'alpha1')
+f4 = buildf(margins, TRUE, copula, 'alpha1')
 f4
 
 cpdf = function(u, theta) {
@@ -72,17 +72,17 @@ cpdf = function(u, theta) {
     dCopula(u, copula)
 }
 # args: function, function
-f5 = buildf(margins, cpdf) # equivalent to f4
+f5 = buildf(margins, TRUE, cpdf) # equivalent to f4
 f5
 
 # args: function, copula object
 copula@parameters = 2
-f6 = buildf(margins, copula)
+f6 = buildf(margins, TRUE, copula)
 f6 # uses copula@parameters
 
 cpdf = function(u, theta) dCopula(u, copula)
 # args: function, function
-f7 = buildf(margins, cpdf) # equivalent to f6
+f7 = buildf(margins, TRUE, cpdf) # equivalent to f6
 f7
 
 ## compare all

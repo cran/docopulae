@@ -1,7 +1,7 @@
 Package: docopulae
 Title: Optimal Designs for Copula Models
-Version: 0.3.3
-Date: 2016-06-22
+Version: 0.3.4
+Date: 2018-06-18
 Authors@R: person("Andreas", "Rappold", email = "arappold@gmx.at", role = c("aut", "cre"))
 Author: Andreas Rappold [aut, cre]
 Maintainer: Andreas Rappold <arappold@gmx.at>
@@ -13,7 +13,7 @@ Description: A direct approach to optimal designs for copula models based on
     common low-level tasks.
 Depends: R (>= 3.1.2)
 Imports: graphics, grDevices, methods, stats, utils
-Suggests: copula, numDeriv, Deriv (>= 3.6.1), cubature, SparseGrid,
+Suggests: copula, numDeriv, Deriv (>= 3.8.5), cubature, SparseGrid,
         mvtnorm, testthat
 URL: http://www.tandfonline.com/doi/full/10.1080/02331888.2015.1111892
         https://github.com/arappold/docopulae
@@ -22,7 +22,7 @@ License: MIT + file LICENSE
 LazyData: true
 NeedsCompilation: yes
 Encoding: UTF-8
-RoxygenNote: 5.0.1.9000
-Packaged: 2016-06-23 07:06:37 UTC; arappold
+RoxygenNote: 6.0.1
+Packaged: 2018-06-19 05:34:34 UTC; arappold
 Repository: CRAN
-Date/Publication: 2016-06-23 09:19:06
+Date/Publication: 2018-06-19 14:53:11 UTC

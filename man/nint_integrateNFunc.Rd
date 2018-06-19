@@ -87,4 +87,3 @@ assign('nint_integrateNFunc', dfltNFunc, envir=environment(nint_integrate))
 
 \code{\link{integrateA}}
 }
-

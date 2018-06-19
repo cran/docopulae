@@ -28,4 +28,3 @@ See \code{\link{param}} for its structural definition.
 \seealso{
 \code{\link{param}}, \code{\link{design}}
 }
-

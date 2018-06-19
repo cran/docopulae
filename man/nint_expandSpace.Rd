@@ -29,4 +29,3 @@ nint_expandSpace(s)
 \seealso{
 \code{\link{nint_space}}
 }
-

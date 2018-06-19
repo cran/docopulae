@@ -57,4 +57,3 @@ nint_validateSpace(list(s1, s2))
 \seealso{
 \code{\link{nint_ERROR}}, \code{\link{nint_space}}
 }
-

@@ -164,4 +164,3 @@ assign('nint_integrateNCube', dfltNCube, envir=environment(nint_integrate))
 \seealso{
 \code{\link{nint_integrate}}, \code{\link{nint_space}}, \code{\link{nint_tanTransform}}, \code{\link{fisherI}}
 }
-

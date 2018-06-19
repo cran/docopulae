@@ -22,4 +22,3 @@ Imagine using \code{cbind} to create a row matrix of points.
 \seealso{
 \code{\link{nint_TYPE}}, \code{\link{nint_space}}
 }
-

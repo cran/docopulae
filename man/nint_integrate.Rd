@@ -94,4 +94,3 @@ nint_integrate(function(x) 1, s) # 4*pi/3
 \seealso{
 \code{\link{nint_space}}, \code{\link{nint_transform}}, \code{\link{nint_integrateNCube}}, \code{\link{nint_integrateNFunc}}, \code{\link{fisherI}}
 }
-

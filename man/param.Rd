@@ -62,7 +62,7 @@ if (numDeriv) {
         e = etas(theta)
         cbind(dnorm(y, mean=e, sd=1), pnorm(y, mean=e, sd=1))
     }
-    f = buildf(margins, copula, parNames=alphas)
+    f = buildf(margins, TRUE, copula, parNames=alphas)
 
     d2logf = numDeriv2Logf(f)
 
@@ -76,7 +76,7 @@ if (numDeriv) {
                    list(pdf=substitute(dnorm(y[2], mean=eta2, sd=1), es),
                         cdf=substitute(pnorm(y[2], mean=eta2, sd=1), es)))
     pn = as.list(alphas); names(pn) = alphas # map parameter to variable
-    f = buildf(margins, copula, parNames=pn)
+    f = buildf(margins, TRUE, copula, parNames=pn)
 
     cat('building derivatives ...')
     tt = system.time(d2logf <- Deriv2Logf(f, parNames))
@@ -177,4 +177,3 @@ assign('nint_integrateNCube', dfltNCube, envir=environment(nint_integrate))
 \seealso{
 \code{\link{fisherI}}, \code{\link{update.param}}, \code{\link{Dsensitivity}}, \code{\link{getM}}, \code{\link{Defficiency}}
 }
-

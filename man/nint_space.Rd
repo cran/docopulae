@@ -36,4 +36,3 @@ s
 \seealso{
 \code{\link{nint_scatDim}}, \code{\link{nint_gridDim}}, \code{\link{nint_intvDim}}, \code{\link{nint_funcDim}}, \code{\link{nint_integrate}}, \code{\link{nint_validateSpace}}, \code{\link{nint_expandSpace}}, \code{\link{fisherI}}
 }
-

@@ -38,4 +38,3 @@ If \code{ff} is a list, it shall contain \code{dlogf} xor \code{d2logf}.
 \seealso{
 \code{\link{buildf}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{nint_space}}, \code{\link{nint_transform}}, \code{\link{nint_integrate}}, \code{\link{param}}
 }
-

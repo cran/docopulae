@@ -73,20 +73,26 @@ update.param = function(object, x, ...) {
 }
 
 
-#' Build Density
+#' Build probability density or mass Function
 #'
-#' \code{buildf} builds a joint probabilty density function from marginal distributions and a copula.
+#' \code{buildf} builds a joint probability density or mass function from marginal distributions and a copula.
 #'
 #' Please note that expressions are not validated.
+#'
+#' If \code{continuous} is \code{FALSE}, dimensionality shall be 2 and both dimensions shall be discrete.
+#' The joint probability mass is defined by
+#' \deqn{C(F_{1}(y_{1}),F_{2}(y_{2}))-C(F_{1}(y_{1}-1),F_{2}(y_{2}))-C(F_{1}(y_{1}),F_{2}(y_{2}-1))+C(F_{1}(y_{1}-1),F_{2}(y_{2}-1))}{C(F1(y[1]), F2(y[2])) - C(F1(y[1] - 1), F2(y[2])) - C(F1(y[1]), F2(y[2] - 1)) + C(F1(y[1] - 1), F2(y[2] - 1))}
+#' where \eqn{C}, \eqn{F_{1}}{F1}, and \eqn{F_{2}}{F2} depend on \eqn{\theta} and \eqn{y_{i}\ge0}{y[i] \ge 0}.
 #'
 #' @param margins either \itemize{
 #' \item \code{function(y, theta, ...)}, where \code{theta} is a list of parameters.
 #' It shall return a column matrix of two, the probability densities and cumulative distributions.
 #' \item a list of pairs of expressions, each named \code{"pdf"} and \code{"cdf"}, the probability density and cumulative distribution.
 #' }
+#' @param continuous \code{TRUE} if margins are continuous. See details.
 #' @param copula if \code{margins} is \itemize{
-#' \item a function then either a copula object from package \pkg{copula} or \code{function(u, theta, ...)}, a probability density function.
-#' \item a list then either a copula object from package \pkg{copula} which contains distribution expressions or an expression for the probability density which uses \code{u1},\code{u2},...
+#' \item a function then either a copula object from package \pkg{copula} or \code{function(u, theta, ...)}, a probability density function if \code{continuous} else a cumulative distribution function.
+#' \item a list then either a copula object from package \pkg{copula} which contains distribution expressions or an expression for the probability density if \code{continuous} else the cumulative distribution which uses \code{u1},\code{u2},...
 #' }
 #' @param parNames if \itemize{
 #' \item (optional) \code{margins} is a function and \code{copula} is a copula object then a vector of names or indices, the sequence of copula parameters in \code{theta}.
@@ -96,21 +102,22 @@ update.param = function(object, x, ...) {
 #' }
 #' @param simplifyAndCache (if \code{margins} is a list) simplify and cache the result using \code{\link[Deriv]{Simplify}} and \code{\link[Deriv]{Cache}} from package \pkg{Deriv} if available.
 #'
-#' @return \code{buildf} returns \code{function(y, theta, ...)}, the joint probability density function.
+#' @return \code{buildf} returns \code{function(y, theta, ...)}, the joint probability density or mass function.
 #'
 #' @seealso \pkg{copula}, \code{\link[Deriv]{Simplify}}, \code{\link[Deriv]{Cache}}, \code{\link{numDerivLogf}}, \code{\link{DerivLogf}}, \code{\link{fisherI}}
 #'
 #' @example R/examples/buildf.R
 #'
 #' @export
-buildf = function(margins, copula, parNames=NULL, simplifyAndCache=T) {
+buildf = function(margins, continuous, copula, parNames=NULL, simplifyAndCache=T) {
     tt = list(margins, copula, parNames)
 
     if (is.list(margins)) { # symbolic
         if (inherits(copula, 'copula')) { # copula object
             att = attr(copula, 'exprdist')
             if (!is.null(att)) {
-                expr = att$pdf
+                expr = if (continuous) att$pdf else att$cdf
+
                 if (length(copula@parameters) != 0) {
                     if (is.null(parNames))
                         stop('parNames shall be specified in this use case')
@@ -118,6 +125,7 @@ buildf = function(margins, copula, parNames=NULL, simplifyAndCache=T) {
                     names(gets) = names(parNames)
                     expr = substituteDirect(expr, gets)
                 }
+
                 copula = expr
             } # else: next stop
         }
@@ -126,24 +134,48 @@ buildf = function(margins, copula, parNames=NULL, simplifyAndCache=T) {
             stop('copula shall be a copula object containing distribution expressions or an expression for the probability density in this use case')
 
         ui = paste('u', seq1(1, length(margins)), sep='')
-        uProd = parse(text=paste(ui, collapse='*'))[[1]]
 
-        cdfs = lapply(margins, function(margin)
-            substitute((a), list(a=margin[['cdf']])))
+        cdfs = lapply(margins, function(margin) in.brackets(margin[['cdf']]))
         names(cdfs) = ui
 
-        pdfs = lapply(margins, function(margin)
-            substitute((a), list(a=margin[['pdf']])))
-        names(pdfs) = ui
+        if (continuous) {
+            pdfs = lapply(margins, function(margin) in.brackets(margin[['pdf']]))
+            names(pdfs) = ui
 
-        f = substitute((a)*b, list(a=substituteDirect(copula, cdfs),
-                                   b=substituteDirect(uProd, pdfs)))
+            uProd = parse(text=paste(ui, collapse='*'))[[1]]
 
-        if (simplifyAndCache)
-            if (requireNamespace('Deriv', quietly=T))
+            f = substitute((a)*b, list(a=substituteDirect(copula, cdfs),
+                                       b=substituteDirect(uProd, pdfs)))
+
+        } else {
+            cdfs1 = lapply(margins, function(margin)
+                in.brackets(substituteDirect(margin[['cdf']],list(y=quote((y + c(-1, 0)))))))
+            names(cdfs1) = ui
+
+            cdfs2 = lapply(margins, function(margin)
+                in.brackets(substituteDirect(margin[['cdf']], list(y=quote((y + c(0, -1)))))))
+            names(cdfs2) = ui
+
+            cdfs12 = lapply(margins, function(margin)
+                in.brackets(substituteDirect(margin[['cdf']], list(y=quote((y + c(-1, -1)))))))
+            names(cdfs12) = ui
+
+            c0 = substituteDirect(copula, cdfs)
+            c1 = substitute(if (y[1] == 0) 0 else { cc }, list(cc=substituteDirect(copula, cdfs1)))
+            c2 = substitute(if (y[2] == 0) 0 else { cc }, list(cc=substituteDirect(copula, cdfs2)))
+            c12 = substitute(if (any(y == 0)) 0 else { cc }, list(cc=substituteDirect(copula, cdfs12)))
+
+            f = substitute((c0)-(c1)-(c2)+(c12), list(c0=c0, c1=c1, c2=c2, c12=c12))
+        }
+
+        if (simplifyAndCache) {
+            if (requireNamespace('Deriv', quietly=T)) {
                 f = Deriv::Cache(Deriv::Simplify(Deriv::deCache(f)))
+            }
+        }
 
-        return(as.function(c(alist(y=, theta=, ...=), list(f))))
+        r = as.function(c(alist(y=, theta=, ...=), list(f)))
+        return(r)
     }
 
     if (!is.function(margins))
@@ -151,15 +183,17 @@ buildf = function(margins, copula, parNames=NULL, simplifyAndCache=T) {
 
     if (inherits(copula, 'copula')) {
         C = copula
+        CopulaF = if (continuous) copula::dCopula else copula::pCopula
+        Idcs = which(parNames != 0 & parNames != '')
 
-        idcs = which(parNames != 0 & parNames != '')
-        if (length(idcs) == 0)
-            copula = function(u, theta, ...) copula::dCopula(u, C, ...)
-        else {
-            parNames = parNames[idcs]
+        if (length(Idcs) == 0) {
+            copula = function(u, theta, ...) CopulaF(u, C, ...)
+
+        } else {
+            ParNames = parNames[Idcs]
             copula = function(u, theta, ...) {
-                C@parameters[idcs] = as.numeric(theta[parNames])
-                return(copula::dCopula(u, C, ...))
+                C@parameters[Idcs] = as.numeric(theta[ParNames])
+                return(CopulaF(u, C, ...))
             }
         }
     }
@@ -167,10 +201,31 @@ buildf = function(margins, copula, parNames=NULL, simplifyAndCache=T) {
     if (!is.function(copula))
         stop('copula shall be a copula object or a probability density function in this use case')
 
-    return(function(y, theta, ...) {
-        dp = margins(y, theta, ...)
-        return(copula(dp[,2], theta) * prod(dp[,1]))
-    })
+    if (continuous) {
+        r = function(y, theta, ...) {
+            dp = margins(y, theta, ...)
+            return(copula(dp[,2], theta) * prod(dp[,1]))
+        }
+
+    } else {
+        r = function(y, theta, ...) {
+            dp = margins(y, theta, ...)
+            dp1 = margins(y + c(-1, 0), theta, ...)
+            dp2 = margins(y + c(0, -1), theta, ...)
+            dp12 = margins(y + c(-1, -1), theta, ...)
+            pp = rbind(dp[,2], dp1[,2], dp2[,2], dp12[,2])
+            r = copula(pp, theta) %*% c(1, -1, -1, 1)
+            return(r)
+        }
+    }
+
+    return(r)
+}
+
+
+in.brackets = function(x) {
+    r = substitute((a), list(a=x))
+    return(r)
 }
 
 

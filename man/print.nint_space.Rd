@@ -23,4 +23,3 @@ Each dimension has its own representation which should be easy to understand.
 \seealso{
 \code{\link{nint_space}}
 }
-

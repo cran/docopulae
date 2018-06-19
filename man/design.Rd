@@ -28,4 +28,3 @@ An object of class \code{"desigh"} is a list containing at least this function's
 \seealso{
 \code{\link{Wynn}}, \code{\link{reduce}}, \code{\link{getM}}, \code{\link{plot.desigh}}, \code{\link{Defficiency}}, \code{\link{update.param}}
 }
-

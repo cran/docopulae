@@ -21,4 +21,3 @@ The bounds may be (negative) \code{Inf}.
 \seealso{
 \code{\link{nint_TYPE}}, \code{\link{nint_space}}
 }
-

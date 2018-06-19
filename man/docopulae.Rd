@@ -22,4 +22,3 @@ E. Perrone & W.G. Müller (2016) Optimal designs for copula models, Statistics, 
 \seealso{
 \code{\link{Dsensitivity}}
 }
-

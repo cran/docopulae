@@ -48,4 +48,3 @@ nint_integrate(tt$f, tt$space) # should return 1
 \seealso{
 \code{\link{nint_transform}}
 }
-

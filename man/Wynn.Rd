@@ -40,4 +40,3 @@ Wynn, Henry P. (1970) The Sequential Generation of D-Optimum Experimental Design
 \seealso{
 \code{\link{Dsensitivity}}, \code{\link{design}}
 }
-

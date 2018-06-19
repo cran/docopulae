@@ -5,8 +5,8 @@
 \alias{nint_ERROR}
 \alias{nint_ERROR_DIM_TYPE}
 \alias{nint_ERROR_SCATTER_LENGTH}
-\alias{nint_ERROR_SPACE_DIM}
 \alias{nint_ERROR_SPACE_TYPE}
+\alias{nint_ERROR_SPACE_DIM}
 \title{Space Validation Errors}
 \format{integer}
 \usage{
@@ -34,4 +34,3 @@ Error codes for space validation.
 \code{\link{nint_validateSpace}}, \code{\link{nint_space}}
 }
 \keyword{datasets}
-

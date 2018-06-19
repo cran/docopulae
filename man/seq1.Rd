@@ -28,4 +28,3 @@ seq1(5, 1, -3)
 \seealso{
 \code{\link[base]{seq}}
 }
-

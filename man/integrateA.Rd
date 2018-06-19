@@ -29,4 +29,3 @@ integrateA(f, -1, 1, subdivisions=3)$value
 \seealso{
 \code{\link[stats]{integrate}}
 }
-

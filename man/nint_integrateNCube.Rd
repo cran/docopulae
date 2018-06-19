@@ -2,9 +2,9 @@
 % Please edit documentation in R/nint.R
 \name{nint_integrateNCube}
 \alias{nint_integrateNCube}
-\alias{nint_integrateNCube_SparseGrid}
-\alias{nint_integrateNCube_cubature}
 \alias{nint_integrateNCube_integrate}
+\alias{nint_integrateNCube_cubature}
+\alias{nint_integrateNCube_SparseGrid}
 \title{Integrate Hypercube}
 \usage{
 nint_integrateNCube(f, lowerLimit, upperLimit, ...)
@@ -113,4 +113,3 @@ assign('nint_integrateNCube', dfltNCube, envir=environment(nint_integrate))
 
 \code{\link[SparseGrid]{createIntegrationGrid}} in package \pkg{SparseGrid}
 }
-

@@ -236,7 +236,7 @@ roworder = function(x, ...) {
 #' @example R/examples/rowmatch.R
 #'
 #' @export
-#' @useDynLib docopulae rowmatch_double
+#' @useDynLib docopulae, rowmatch_double, .registration = TRUE 
 rowmatch = function(x, table, nomatch=NA_integer_) {
     if (!(is.double(x) && is.matrix(x) && is.double(table) && is.matrix(table)))
         stop('x and table shall be matrices of doubles')

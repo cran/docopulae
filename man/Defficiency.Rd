@@ -46,4 +46,3 @@ and D_A efficiency as
 \seealso{
 \code{\link{design}}, \code{\link{param}}
 }
-

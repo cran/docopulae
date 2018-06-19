@@ -25,4 +25,3 @@ As the argument to \code{x} is only partially defined the user has to ensure tha
 \seealso{
 \code{\link{nint_TYPE}}, \code{\link{nint_space}}
 }
-

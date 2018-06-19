@@ -30,4 +30,3 @@ x[ord,]
 \seealso{
 \code{\link[base]{order}}
 }
-

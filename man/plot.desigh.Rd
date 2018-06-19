@@ -43,4 +43,3 @@ uses add.alpha from \url{http://www.magesblog.com/2013/04/how-to-change-alpha-va
 \seealso{
 \code{\link{design}}, \code{\link{Dsensitivity}}
 }
-

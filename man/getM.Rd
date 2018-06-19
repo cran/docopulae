@@ -24,4 +24,3 @@ getM(mod, des)
 \seealso{
 \code{\link{param}}, \code{\link{design}}
 }
-

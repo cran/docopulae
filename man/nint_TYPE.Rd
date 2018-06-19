@@ -3,10 +3,10 @@
 \docType{data}
 \name{nint_TYPE}
 \alias{nint_TYPE}
-\alias{nint_TYPE_FUNC_DIM}
+\alias{nint_TYPE_SCAT_DIM}
 \alias{nint_TYPE_GRID_DIM}
 \alias{nint_TYPE_INTV_DIM}
-\alias{nint_TYPE_SCAT_DIM}
+\alias{nint_TYPE_FUNC_DIM}
 \title{Dimension Type Attribute Values}
 \format{integer}
 \usage{
@@ -27,4 +27,3 @@ See dimension types in "See Also" below.
 \code{\link{nint_scatDim}}, \code{\link{nint_gridDim}}, \code{\link{nint_intvDim}}, \code{\link{nint_funcDim}}, \code{\link{nint_space}}
 }
 \keyword{datasets}
-
