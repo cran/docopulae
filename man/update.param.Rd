@@ -21,10 +21,13 @@ See \code{\link{param}} for its structural definition.
 \description{
 \code{update.param} evaluates the Fisher information at uncharted points and returns an updated model object.
 }
+\details{
+When the user interrupts execution, the function returns a partially updated model object.
+}
 \examples{
 ## see examples for param
 
 }
 \seealso{
-\code{\link{param}}, \code{\link{design}}
+\code{\link{param}}, \code{\link{grow.grid}}, \code{\link{design}}
 }

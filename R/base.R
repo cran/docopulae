@@ -31,7 +31,12 @@ Derivf = function(f, x, ...) {
         return(v)
     }, names(x), x, SIMPLIFY=F)
 
-    r = mapply(Deriv::Deriv, list(f), xx, MoreArgs=..., SIMPLIFY=F)
+    r = rep(list(NULL), length(xx))
+    for (i in seq1(1, length(xx))) {
+        xi = xx[[i]]
+        cat('d/d ', xi, '\n', sep='')
+        r[[i]] = Deriv::Deriv(f, xi, ...)
+    }
     names(r) = x
     return(r)
 }
@@ -46,25 +51,27 @@ Deriv2f = function(f, x, ...) {
     }, names(x), x, SIMPLIFY=F)
     names(xx) = x
 
-    d2 = mapply(Deriv::Deriv, d, xx, MoreArgs=...)
-    names(d2) = x
-
-    r = rep(list(NA), length(x))
+    r = rep(list(NULL), length(x))
     names(r) = x
     r = replicate(length(x), r, simplify=F)
     names(r) = x
 
-    for (n in x)
-        r[[n]][[n]] = d2[[n]]
+    for (i in seq1(1, length(d))) {
+        xi = xx[[i]]
+        cat('d^2/d ', xi, ' d ', xi, '\n', sep='')
+
+        r[[xi]][[xi]] = Deriv::Deriv(d[[i]], xi, ...)
+    }
 
     combs = combn(as.character(x), 2)
-    d2 = mapply(Deriv::Deriv, d[combs[1,]], xx[combs[2,]], MoreArgs=...)
-
     for (i in seq1(1, ncol(combs))) {
         a = combs[1, i]
         b = combs[2, i]
-        r[[a]][[b]] = d2[[i]]
-        r[[b]][[a]] = d2[[i]]
+        cat('d^2/d ', a, ' d ', b, '\n', sep='')
+
+        n = Deriv::Deriv(d[[a]], xx[[b]], ...)
+        r[[a]][[b]] = n
+        r[[b]][[a]] = n
     }
 
     return(r)
@@ -256,6 +263,58 @@ rowmatch = function(x, table, nomatch=NA_integer_) {
 
     r = ordt[i][order(ordx)]
     r[is.na(r)] = nomatch
+    return(r)
+}
+
+
+#' Grow Grid
+#'
+#' \code{grow.grid} creates a data frame like \code{expand.grid}.
+#' The order of rows is adjusted to represent a growing grid with respect to resolution.
+#'
+#' @param x a list of vectors.
+#' @param random \code{TRUE} if order of rows within each level of resolution should be random.
+#'
+#' @return \code{grow.grid} returns a data frame like \code{expand.grid}.
+#'
+#' @seealso \code{\link{update.param}}
+#'
+#' @export
+grow.grid = function(x, random=T) {
+    if (length(x) == 0) {
+        return(data.frame())
+    }
+    stages = lapply(x, get.stages)
+    # ensure same length
+    n = max(sapply(stages, length))
+    stages = lapply(stages, function(stages) c(stages, rep(stages[length(stages)], n - length(stages))))
+    #
+    grids = do.call(function(...) mapply(expand.grid, ..., SIMPLIFY=F), stages)
+    grids = lapply(grids, as.data.frame) # ensure data frames
+    if (random) {
+        grids = lapply(grids, function(grid) grid[sample.int(nrow(grid)),, drop=F])
+    }
+    r = unique(do.call(rbind, grids))
+    rownames(r) = NULL
+    return(r)
+}
+
+get.stages = function(x) {
+    if (length(x) == 0) {
+        return(list())
+    }
+    n = ceiling(log2(length(x))*2 + 2) # overestimate number of stages
+    r = rep(list(NULL), n)
+    step = length(x) - 1 # start with lowest resolution
+    for (i in 1:length(r)) {
+        j = unique(round(seq(1, length(x), step))) # get indices
+        r[[i]] = x[j]
+        if (length(j) == length(x)) {
+            break
+        }
+        step = step / 2 # increase resolution
+    }
+    r = r[1:i] # remove empty
     return(r)
 }
 

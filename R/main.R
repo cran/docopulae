@@ -33,6 +33,8 @@ param = function(fisherIf, dDim) {
 #'
 #' \code{update.param} evaluates the Fisher information at uncharted points and returns an updated model object.
 #'
+#' When the user interrupts execution, the function returns a partially updated model object.
+#'
 #' @param object a model.
 #' @param x either a row matrix of points or a design, or a list structure of matrices or designs.
 #' The number of columns/the dimensionality of the design space shall be equal to \code{ncol(object$x)}.
@@ -41,7 +43,7 @@ param = function(fisherIf, dDim) {
 #' @return \code{update.param} returns an object of \code{class} \code{"param"}.
 #' See \code{\link{param}} for its structural definition.
 #'
-#' @seealso \code{\link{param}}, \code{\link{design}}
+#' @seealso \code{\link{param}}, \code{\link{grow.grid}}, \code{\link{design}}
 #'
 #' @examples ## see examples for param
 #'
@@ -60,17 +62,57 @@ update.param = function(object, x, ...) {
     idcs = seq1(nrow(mod$x) + 1, nrow(x))
     r = mod
 
-    if (length(idcs) != 0) {
-        xx = x[idcs,, drop=F]
-        fisherI = lapply(split(xx, seq_len(nrow(xx))), mod$fisherIf)
-        fisherI = c(mod$fisherI, fisherI)
-        names(fisherI) = NULL
-        r$fisherI = fisherI
-        r$x = x
+    if (length(idcs) == 0) {
+        return(r)
     }
+
+    xx = x[idcs,, drop=F]
+    xx = split(xx, seq_len(nrow(xx)))
+    fisherI = rep(list(NULL), length(xx))
+
+    runtimes = rep(NA_real_, length(xx))
+    previousPrintTime = Sys.time()
+
+    cat(format1(0, 2, 1), '% | ', length(xx), ' to go', '\n', sep='')
+
+    i = 1
+    tryCatch({
+        for (i in 1:length(xx)) {
+            xi = xx[[i]]
+
+            if (60 <= as.seconds(Sys.time() - previousPrintTime)) {
+                previousPrintTime = Sys.time()
+                nToGo = length(xx) - i + 1
+                maxI = which.max(runtimes)
+                cat(format1((i - 1)/length(xx)*100, 2, 1), '% | ', nToGo, ' to go (~', format1(ceiling(mean(runtimes, na.rm=T)*nToGo/60), 1, 0), 'min) | max. ', format1(runtimes[maxI], 1, 1), 's at x=c(', paste(xx[[maxI]], collapse=', '), ')', '\n', sep='')
+            }
+
+            begin = Sys.time()
+            n = mod$fisherIf(xi)
+            end = Sys.time()
+
+            fisherI[[i]] = n
+            runtimes[i] = as.seconds(end - begin)
+        }
+
+        cat(format1(100, 2, 1), '%', '\n', sep='')
+
+    }, interrupt=function(cond) {
+        x <<- x[-idcs[i:length(xx)],, drop=F]
+        fisherI <<- fisherI[seq1(1, i - 1)]
+    })
+
+    fisherI = c(mod$fisherI, fisherI)
+    r$fisherI = fisherI
+    r$x = x
 
     return(r)
 }
+
+
+format1 = function(x, left, right) format(round(x, right), nsmall=right, width=left + right + (right != 0))
+
+as.seconds = function(x) as.numeric(x, units='secs')
 
 
 #' Build probability density or mass Function

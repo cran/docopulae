@@ -1,7 +1,7 @@
 Package: docopulae
 Title: Optimal Designs for Copula Models
-Version: 0.3.4
-Date: 2018-06-18
+Version: 0.3.5
+Date: 2018-06-20
 Authors@R: person("Andreas", "Rappold", email = "arappold@gmx.at", role = c("aut", "cre"))
 Author: Andreas Rappold [aut, cre]
 Maintainer: Andreas Rappold <arappold@gmx.at>
@@ -23,6 +23,6 @@ LazyData: true
 NeedsCompilation: yes
 Encoding: UTF-8
 RoxygenNote: 6.0.1
-Packaged: 2018-06-19 05:34:34 UTC; arappold
+Packaged: 2018-06-20 22:14:24 UTC; arappold
 Repository: CRAN
-Date/Publication: 2018-06-19 14:53:11 UTC
+Date/Publication: 2018-06-21 13:59:29 UTC

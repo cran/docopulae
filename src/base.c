@@ -25,7 +25,7 @@ void rowmatch_double(double* x, int* _xrn, int* _xcn,
 
     i2 = 0;
     for (i1 = 0; i1 < xrn; i1++) { // for each row in x
-        r[i1] = R_NaReal;
+        r[i1] = R_NaInt;
         for (; i2 < tabrn; i2++) { // find row in tab
             j1 = i1;
             j2 = i2;
