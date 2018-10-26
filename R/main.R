@@ -58,7 +58,8 @@ update.param = function(object, x, ...) {
     if (ncol(x) != ncol(mod$x))
         stop(paste('x shall have exactly', ncol(mod$x), 'columns'))
 
-    x = unique(rbind(mod$x, x)) # merge x
+    x = rbind(mod$x, x)
+    x = x[!rowsduplicated(x),, drop=F]  # merge x
     idcs = seq1(nrow(mod$x) + 1, nrow(x))
     r = mod
 
@@ -694,7 +695,7 @@ Dsensitivity_anyNAm = 'Fisher information matrices shall not contain missing val
 #'
 #' @references E. Perrone & W.G. Müller (2016) Optimal designs for copula models, Statistics, 50:4, 917-929, DOI: 10.1080/02331888.2015.1111892
 #'
-#' @seealso \code{\link{docopulae}}, \code{\link{param}}, \code{\link{Wynn}}, \code{\link{plot.desigh}}
+#' @seealso \code{\link{docopulae}}, \code{\link{param}}, \code{\link{wDsensitivity}}, \code{\link{Wynn}}, \code{\link{plot.desigh}}
 #'
 #' @examples ## see examples for param
 #'
@@ -834,6 +835,72 @@ Dsensitivity = function(A=NULL, parNames=NULL, defaults=list(x=NULL, desw=NULL, 
             r = c(t1 %*% m) # I: tr(dt1 %*% dm[,,i])
         else
             r = dr
+
+        return(r)
+    }
+    attributes(r) = list(A=A, parNames=parNames, defaults=defaults)
+
+    return(r)
+}
+
+
+#' Weighted D Sensitivity
+#'
+#' \code{wDsensitivity} builds a sensitivity function for the weighted D-, D_s or D_A-optimality criterion which relies on defaults to speed up evaluation.
+#' \code{Wynn} for instance requires this behaviour/protocol.
+#'
+#' Indices and rows of an unnamed matrix supplied to argument \code{A} correspond to the subset of parameters defined by argument \code{parNames}.
+#'
+#' For efficiency reasons the returned function won't complain about \emph{missing arguments} immediately, leading to strange errors.
+#' Please ensure that all arguments are specified at all times.
+#' This behaviour might change in future releases.
+#'
+#' @param A for \itemize{
+#' \item D-optimality: \code{NULL}
+#' \item D_s-optimality: a vector of names or indices, the subset of parameters of interest.
+#' \item D_A-optimality: either \itemize{
+#'   \item directly: a matrix without row names.
+#'   \item indirectly: a matrix with row names corresponding to the parameters.
+#'   }
+#' }
+#' @param parNames a vector of names or indices, the subset of parameters to use.
+#' Defaults to the parameters for which the Fisher information is available.
+#' @param defaults a named list of default values.
+#' The value \code{NULL} is equivalent to absence.
+#'
+#' @return \code{wDsensitivity} returns \code{function(x=NULL, desw=NULL, desx=NULL, mods=NULL, modw=NULL)}, the sensitivity function.
+#' It's attributes contain this function's arguments.
+#'
+#' @seealso \code{\link{docopulae}}, \code{\link{param}}, \code{\link{Dsensitivity}}, \code{\link{Wynn}}, \code{\link{plot.desigh}}
+#'
+#' @encoding UTF-8
+#' @export
+wDsensitivity = function(A=NULL, parNames=NULL, defaults=list(x=NULL, desw=NULL, desx=NULL, mods=NULL, modw=NULL)) {
+    dsensFs = NULL
+
+    dmods = defaults[['mods']]
+
+    if (!is.null(dmods)) {
+        dsensFs = lapply(dmods, function(mod) Dsensitivity(A=A, parNames=parNames, defaults=list(x=defaults[['x']], desw=defaults[['desw']], desx=defaults[['desx']], mod=mod)))
+        dmods = rep(list(NULL), length(dmods))
+    }
+
+    dsensF = Dsensitivity(A=A, parNames=parNames, defaults=list(x=defaults[['x']], desw=defaults[['desw']], desx=defaults[['desx']], mod=NULL))
+
+    r = function(x=NULL, desw=NULL, desx=NULL, mods=NULL, modw=NULL) {
+        if (is.null(mods)) {
+            mods = dmods
+            sensFs = dsensFs
+        } else {
+            sensFs = list(dsensF)
+        }
+
+        if (is.null(modw)) {
+            modw = defaults[['modw']]
+        }
+
+        r = mapply(function(sensF, mod) sensF(x=x, desw=desw, desx=desx, mod=mod), sensFs, mods) %*% modw
+        r = c(r)
 
         return(r)
     }
@@ -1167,9 +1234,9 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL
 #' Indices supplied to argument \code{A} correspond to the subset of parameters defined by argument \code{parNames}.
 #'
 #' D efficiency is defined as
-#' \deqn{\left(\frac{\left|M(\xi,\bar{\theta})\right|}{\left|M(\xi^{*},\bar{\theta})\right|}\right)^{1/n}}{( det(M(\xi, \theta)) / det(M(\xi*, \theta)) )**(1/n)}
+#' \deqn{\left(\frac{\left|M(\xi,\bar{\boldsymbol{\theta}})\right|}{\left|M(\xi^{*},\bar{\boldsymbol{\theta}})\right|}\right)^{1/n}}{( det(M(\xi, \theta)) / det(M(\xi*, \theta)) )**(1/n)}
 #' and D_A efficiency as
-#' \deqn{\left(\frac{\left|A^{T}M(\xi^{*},\bar{\boldsymbol{\theta}})^{-1}A\right|}{\left|A^{T}M(\xi,\bar{\boldsymbol{\theta}})^{-1}A\right|}\right)^{1/s}}{( det(t(A) \%*\% solve(M(\xi*, \theta)) \%*\% A) / det(t(A) \%*\% solve(M(\xi, \theta)) \%*\% A) )**(1/s)}
+#' \deqn{\left(\frac{\left|A^{T}M(\xi,\bar{\boldsymbol{\theta}})^{-1}A\right|^{-1}}{\left|A^{T}M(\xi^{*},\bar{\boldsymbol{\theta}})^{-1}A\right|^{-1}}\right)^{1/s}}{( det(t(A) \%*\% solve(M(\xi*, \theta)) \%*\% A) / det(t(A) \%*\% solve(M(\xi, \theta)) \%*\% A) )**(1/s)}
 #'
 #' @param des a design.
 #' @param ref a design, the reference.
@@ -1187,7 +1254,7 @@ plot.desigh = function(x, sensx=NULL, sens=NULL, sensTol=NULL, ..., margins=NULL
 #'
 #' @return \code{Defficiency} returns a single numeric.
 #'
-#' @seealso \code{\link{design}}, \code{\link{param}}
+#' @seealso \code{\link{design}}, \code{\link{param}}, \code{\link{wDefficiency}}
 #'
 #' @examples ## see examples for param
 #'
@@ -1206,6 +1273,63 @@ Defficiency = function(des, ref, mod, A=NULL, parNames=NULL) {
     if (is.null(A))
         return( (det(M) / det(Mref))**(1/nrow(M)) )
 
-    return( (det(t(A) %*% solve(Mref) %*% A) / det(t(A) %*% solve(M) %*% A) )**(1/ncol(A)) )
+    return( ( det(t(A) %*% solve(Mref) %*% A) / det(t(A) %*% solve(M) %*% A) )**(1/ncol(A)) )
+}
+
+
+#' Weighted D Efficiency
+#'
+#' \code{wDefficiency} computes the weighted D-, D_s or D_A-efficiency measure for a design with respect to a reference design.
+#'
+#' Indices supplied to argument \code{A} correspond to the subset of parameters defined by argument \code{parNames}.
+#'
+#' Weighted D efficiency is defined as
+#' \deqn{\left(\frac{\exp\int_{\mathcal{B}}\log\left|M(\xi,\bar{\boldsymbol{\theta}})\right|\mathrm{d}B}{\exp\int_{\mathcal{B}}\log\left|M(\xi^{*},\bar{\boldsymbol{\theta}})\right|\mathrm{d}B}\right)^{1/n}}{( exp(integral( log(det(M(\xi, \theta))) , dB)) / exp(integral( log(det(M(\xi*, \theta))) , dB)) )**(1/n)}
+#' and weighted D_A efficiency as
+#' \deqn{\left(\frac{\exp\int_{\mathcal{B}}\log\left|A^{T}M(\xi,\bar{\boldsymbol{\theta}})^{-1}A\right|^{-1}\mathrm{d}B}{\exp\int_{\mathcal{B}}\log\left|A^{T}M(\xi^{*},\bar{\boldsymbol{\theta}})^{-1}A\right|^{-1}\mathrm{d}B}\right)^{1/s}}{( exp(integral( -log(det(t(A) \%*\% solve(M(\xi, \theta)) \%*\% A)) , dB)) / exp(integral( -log(det(t(A) \%*\% solve(M(\xi*, \theta)) \%*\% A)) , dB)) )**(1/s)}
+#'
+#' @param des a design.
+#' @param ref a design, the reference.
+#' @param mods a list of models.
+#' @param modw a vector of weights.
+#' @param A for \itemize{
+#' \item D-efficiency: \code{NULL}
+#' \item D_s-efficiency: a vector of names or indices, the subset of parameters of interest.
+#' \item D_A-efficiency: either \itemize{
+#'   \item directly: a matrix without row names.
+#'   \item indirectly: a matrix with row names corresponding to the parameters.
+#'   }
+#' }
+#' @param parNames a vector of names or indices, the subset of parameters to use.
+#' Defaults to the parameters for which the Fisher information is available.
+#'
+#' @return \code{wDefficiency} returns a single numeric.
+#'
+#' @seealso \code{\link{design}}, \code{\link{param}}, \code{\link{Defficiency}}
+#'
+#' @export
+wDefficiency = function(des, ref, mods, modw, A=NULL, parNames=NULL) {
+    mod = mods[[1]]
+    tt = getDAPar(mod, A, parNames)
+    parNames = tt$parNames
+    A = tt$A
+
+    Ms = lapply(mods, function(mod) {
+        m = getm(mod, des$x, parNames)
+        M = getM_(m, des$w)
+        return(M)
+    })
+
+    Mrefs = lapply(mods, function(mod) {
+        m = getm(mod, ref$x, parNames)
+        Mref = getM_(m, ref$w)
+        return(Mref)
+    })
+
+    if (is.null(A)) {
+        return( (exp(c(log(sapply(Ms, det)) %*% modw)) / exp(c(log(sapply(Mrefs, det)) %*% modw)))**(1/nrow(Ms[[1]])) )
+    }
+
+    return( ( exp(-c(log(sapply(Ms, function(M) det(t(A) %*% solve(M) %*% A))) %*% modw)) / exp(-c(log(sapply(Mrefs, function(Mref) det(t(A) %*% solve(Mref) %*% A))) %*% modw)) )**(1/ncol(A)) )
 }
 

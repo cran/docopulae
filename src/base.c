@@ -3,8 +3,8 @@
 #include <stdbool.h>
 
 
-#define DLESS(d) (d <= -DOUBLE_EPS)
-#define DGREATER(d) (DOUBLE_EPS <= d)
+#define DLESS(d) (d < ((double)0))
+#define DZERO(d) (d == ((double)0))
 
 
 void rowmatch_double(double* x, int* _xrn, int* _xcn,
@@ -20,8 +20,8 @@ void rowmatch_double(double* x, int* _xrn, int* _xcn,
     int tabrn = *_tabrn;
     int i1, i2, j, j1, j2;
     double d;
-    bool nextX = FALSE;
-    bool nextTab = FALSE;
+    bool nextX = false;
+    bool nextTab = false;
 
     i2 = 0;
     for (i1 = 0; i1 < xrn; i1++) { // for each row in x
@@ -33,10 +33,10 @@ void rowmatch_double(double* x, int* _xrn, int* _xcn,
                 d = x[j1] - tab[j2];
 
                 if (DLESS(d)) {
-                    nextX = TRUE;
+                    nextX = true;
                     break;
-                } else if (DGREATER(d)) {
-                    nextTab = TRUE;
+                } else if (!DZERO(d)) {
+                    nextTab = true;
                     break;
                 }
 
@@ -45,12 +45,12 @@ void rowmatch_double(double* x, int* _xrn, int* _xcn,
             }
 
             if (nextX) {
-                nextX = FALSE;
+                nextX = false;
                 break;
             }
 
             if (nextTab) {
-                nextTab = FALSE;
+                nextTab = false;
                 continue;
             }
 
@@ -60,3 +60,32 @@ void rowmatch_double(double* x, int* _xrn, int* _xcn,
     }
 }
 
+
+void rowsduplicated_double(double* x, int* _nrow, int* _ncol, Rboolean* r) {
+    int nrow = *_nrow;
+    int ncol = *_ncol;
+    int i, j, k;
+    double d;
+    Rboolean duplicate;
+
+    if (nrow != 0) {
+        r[0] = FALSE;
+    }
+
+    for (i = 1; i < nrow; i++) {
+        k = i;
+        duplicate = TRUE;
+
+        for (j = 0; j < ncol; j++) {
+            d = x[k] - x[k - 1];
+            if (!DZERO(d)) {
+                duplicate = FALSE;
+                break;
+            }
+
+            k += nrow;
+        }
+
+        r[i] = duplicate;
+    }
+}

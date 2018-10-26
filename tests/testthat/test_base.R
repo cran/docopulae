@@ -283,3 +283,25 @@ test_that('rowmatch works for a random example', {
                       order(i))
 })
 
+
+## rowsduplicated
+test_that('rowsduplicated works in trivial cases', {
+    expect_equal(rowsduplicated(matrix(0.0, nrow=0, ncol=0)),
+                 logical(0))
+
+    expect_equal(rowsduplicated(matrix(0.0, nrow=0, ncol=2)),
+                 logical(0))
+
+    expect_equal(rowsduplicated(matrix(0.0)),
+                 c(F))
+
+    expect_equal(rowsduplicated(rbind(c(0.0, 0.0))),
+                 c(F))
+
+    expect_equal(rowsduplicated(rbind(0.0, 0.0)),
+                 c(F, T))
+
+    expect_equal(rowsduplicated(rbind(c(0.0, 1.0), c(0.0, 1.0))),
+                 c(F, T))
+})
+

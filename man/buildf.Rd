@@ -4,7 +4,8 @@
 \alias{buildf}
 \title{Build probability density or mass Function}
 \usage{
-buildf(margins, continuous, copula, parNames = NULL, simplifyAndCache = T)
+buildf(margins, continuous, copula, parNames = NULL,
+  simplifyAndCache = T)
 }
 \arguments{
 \item{margins}{either \itemize{

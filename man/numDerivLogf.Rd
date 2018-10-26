@@ -2,13 +2,12 @@
 % Please edit documentation in R/main.R
 \name{numDerivLogf}
 \alias{numDerivLogf}
-\alias{numDerivLogf}
 \alias{numDeriv2Logf}
 \title{Build Derivative Function for Log f}
 \usage{
 numDerivLogf(f, isLogf = FALSE, logZero = .Machine$double.xmin,
-  logInf = .Machine$double.xmax/2, method = "Richardson", side = NULL,
-  method.args = list())
+  logInf = .Machine$double.xmax/2, method = "Richardson",
+  side = NULL, method.args = list())
 
 numDeriv2Logf(f, isLogf = FALSE, logZero = .Machine$double.xmin,
   logInf = .Machine$double.xmax/2, method = "Richardson",

@@ -2,7 +2,6 @@
 % Please edit documentation in R/main.R
 \name{DerivLogf}
 \alias{DerivLogf}
-\alias{DerivLogf}
 \alias{Deriv2Logf}
 \title{Build Derivative Function for Log f}
 \usage{

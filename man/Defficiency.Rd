@@ -35,14 +35,14 @@ Defaults to the parameters for which the Fisher information is available.}
 Indices supplied to argument \code{A} correspond to the subset of parameters defined by argument \code{parNames}.
 
 D efficiency is defined as
-\deqn{\left(\frac{\left|M(\xi,\bar{\theta})\right|}{\left|M(\xi^{*},\bar{\theta})\right|}\right)^{1/n}}{( det(M(\xi, \theta)) / det(M(\xi*, \theta)) )**(1/n)}
+\deqn{\left(\frac{\left|M(\xi,\bar{\boldsymbol{\theta}})\right|}{\left|M(\xi^{*},\bar{\boldsymbol{\theta}})\right|}\right)^{1/n}}{( det(M(\xi, \theta)) / det(M(\xi*, \theta)) )**(1/n)}
 and D_A efficiency as
-\deqn{\left(\frac{\left|A^{T}M(\xi^{*},\bar{\boldsymbol{\theta}})^{-1}A\right|}{\left|A^{T}M(\xi,\bar{\boldsymbol{\theta}})^{-1}A\right|}\right)^{1/s}}{( det(t(A) \%*\% solve(M(\xi*, \theta)) \%*\% A) / det(t(A) \%*\% solve(M(\xi, \theta)) \%*\% A) )**(1/s)}
+\deqn{\left(\frac{\left|A^{T}M(\xi,\bar{\boldsymbol{\theta}})^{-1}A\right|^{-1}}{\left|A^{T}M(\xi^{*},\bar{\boldsymbol{\theta}})^{-1}A\right|^{-1}}\right)^{1/s}}{( det(t(A) \%*\% solve(M(\xi*, \theta)) \%*\% A) / det(t(A) \%*\% solve(M(\xi, \theta)) \%*\% A) )**(1/s)}
 }
 \examples{
 ## see examples for param
 
 }
 \seealso{
-\code{\link{design}}, \code{\link{param}}
+\code{\link{design}}, \code{\link{param}}, \code{\link{wDefficiency}}
 }

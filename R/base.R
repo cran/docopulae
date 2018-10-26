@@ -221,7 +221,11 @@ clusterPeak = function(x, y, maxDist) {
 roworder = function(x, ...) {
     cols = lapply(seq1(1, ncol(x)), function(i) x[,i])
     args = c(cols, ...)
-    return(do.call(order, args))
+    r = do.call(order, args)
+    if (is.null(r)) {
+        r = integer(0)
+    }
+    return(r)
 }
 
 
@@ -263,6 +267,35 @@ rowmatch = function(x, table, nomatch=NA_integer_) {
 
     r = ordt[i][order(ordx)]
     r[is.na(r)] = nomatch
+    return(r)
+}
+
+
+#' Determine Duplicate Rows
+#'
+#' \code{rowsduplicated} determines which rows of a matrix are duplicates of rows with smaller subscripts, and returns a logical vector indicating which rows are duplicates.
+#'
+#' \code{rowsduplicated} uses compiled C-code.
+#'
+#' @param x a row matrix of doubles.
+#'
+#' @return \code{rowsduplicated} returns a logical vector with one element for each row.
+#'
+#' @seealso \code{\link[base]{duplicated}}
+#'
+#' @export
+#' @useDynLib docopulae, rowsduplicated_double, .registration = TRUE
+rowsduplicated = function(x) {
+    if (!(is.double(x) && is.matrix(x)))
+        stop('x shall be a matrix of doubles')
+
+    order_ = roworder(x)
+    x = x[order_,, drop=F]
+
+    r = logical(nrow(x))
+    r = .C('rowsduplicated_double', x, as.integer(nrow(x)), as.integer(ncol(x)), r, PACKAGE='docopulae')[[4]]
+
+    r = r[order(order_)]
     return(r)
 }
 
